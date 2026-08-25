@@ -1,6 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
-  <path d="M2.5 6.2A1.7 1.7 0 0 1 4.2 4.5h3.9c.45 0 .88.18 1.2.5l1.2 1.2h9.3a1.7 1.7 0 0 1 1.7 1.7v9.6a1.7 1.7 0 0 1-1.7 1.7H4.2a1.7 1.7 0 0 1-1.7-1.7z"/>
-  <circle cx="8.6" cy="13" r="1.5"/>
-  <circle cx="13" cy="13" r="1.5"/>
-  <circle cx="17.4" cy="13" r="1.5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <!--
+    Icono de la barra de actividad. Relleno y con la GG calada a proposito: a 24 px un
+    trazo fino se desvanece, y VS Code lo pinta como silueta de un solo color, asi que
+    lo unico que se lee es la forma. Las letras ocupan casi todo el cuerpo de la carpeta.
+  -->
+  <path fill-rule="evenodd" clip-rule="evenodd" d="
+    M2 6.1A1.8 1.8 0 0 1 3.8 4.3h4.05c.45 0 .88.18 1.2.5l1.35 1.35H20.2A1.8 1.8 0 0 1 22 7.95V18A2 2 0 0 1 20 20H4A2 2 0 0 1 2 18Z
+    M7.35 8.55a4.35 4.35 0 1 0 0 8.7 4.35 4.35 0 0 0 3.6-1.9v-3.1H7.5v2.05h1.5v.45a2.5 2.5 0 1 1-.2-3.2l1.55-1.35a4.35 4.35 0 0 0-3-1.65Z
+    M8.55 11.9a2.5 2.5 0 0 0 0 5 2.5 2.5 0 0 0 .45-.05v-1.5a1.05 1.05 0 1 1 .6-1.9Z
+    M16.65 8.55a4.35 4.35 0 1 0 0 8.7 4.35 4.35 0 0 0 3.6-1.9v-3.1H16.8v2.05h1.5v.45a2.5 2.5 0 1 1-.2-3.2l1.55-1.35a4.35 4.35 0 0 0-3-1.65Z
+    M17.85 11.9a2.5 2.5 0 0 0 0 5 2.5 2.5 0 0 0 .45-.05v-1.5a1.05 1.05 0 1 1 .6-1.9Z
+  "/>
 </svg>

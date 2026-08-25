@@ -1,34 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="GG Groups">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="128" height="128" role="img" aria-label="GG Groups">
+  <!--
+    La misma marca que el icono de la barra, para que se reconozcan como lo mismo:
+    una carpeta con la GG calada. Aqui con color y algo de profundidad.
+  -->
   <defs>
     <linearGradient id="gg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#4FC3F7"/>
-      <stop offset="0.55" stop-color="#2E8FE6"/>
+      <stop offset="0" stop-color="#7FD4FF"/>
+      <stop offset="0.5" stop-color="#3E9BEA"/>
       <stop offset="1" stop-color="#1565C0"/>
     </linearGradient>
-    <linearGradient id="ggSoft" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8AD8FF"/>
-      <stop offset="1" stop-color="#3E9BEA"/>
+    <linearGradient id="ggTab" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#A6E2FF"/>
+      <stop offset="1" stop-color="#5AB4F0"/>
     </linearGradient>
   </defs>
 
-  <!-- Carpeta de fondo: lo que la extension organiza -->
-  <path fill="url(#gg)" opacity="0.16"
-        d="M14 34a8 8 0 0 1 8-8h26l9 10h43a8 8 0 0 1 8 8v56a8 8 0 0 1-8 8H22a8 8 0 0 1-8-8z"/>
-  <path fill="none" stroke="url(#gg)" stroke-width="4" stroke-linejoin="round" opacity="0.55"
-        d="M14 34a8 8 0 0 1 8-8h26l9 10h43a8 8 0 0 1 8 8v56a8 8 0 0 1-8 8H22a8 8 0 0 1-8-8z"/>
+  <!-- Pestana, un tono mas claro para dar volumen -->
+  <path fill="url(#ggTab)"
+        d="M2 6.1A1.8 1.8 0 0 1 3.8 4.3h4.05c.45 0 .88.18 1.2.5l1.35 1.35H20.2A1.8 1.8 0 0 1 22 7.95v1.15H2Z"/>
 
-  <!-- Dos G entrelazadas: los grupos que se unen -->
-  <g fill="none" stroke-linecap="round" stroke-width="11">
-    <path stroke="url(#ggSoft)"
-          d="M62 50a20 20 0 1 0 0 30h2V66h-9"/>
-    <path stroke="url(#gg)"
-          d="M92 50a20 20 0 1 0 0 30h2V66h-9"/>
-  </g>
-
-  <!-- Tres puntos: los iconos ya ordenados -->
-  <g fill="url(#gg)">
-    <circle cx="30" cy="58" r="4.5"/>
-    <circle cx="30" cy="72" r="4.5"/>
-    <circle cx="30" cy="86" r="4.5"/>
-  </g>
+  <!-- Cuerpo con la GG calada -->
+  <path fill="url(#gg)" fill-rule="evenodd" clip-rule="evenodd" d="
+    M2 7.4h20V18A2 2 0 0 1 20 20H4A2 2 0 0 1 2 18Z
+    M7.35 8.55a4.35 4.35 0 1 0 0 8.7 4.35 4.35 0 0 0 3.6-1.9v-3.1H7.5v2.05h1.5v.45a2.5 2.5 0 1 1-.2-3.2l1.55-1.35a4.35 4.35 0 0 0-3-1.65Z
+    M8.55 11.9a2.5 2.5 0 0 0 0 5 2.5 2.5 0 0 0 .45-.05v-1.5a1.05 1.05 0 1 1 .6-1.9Z
+    M16.65 8.55a4.35 4.35 0 1 0 0 8.7 4.35 4.35 0 0 0 3.6-1.9v-3.1H16.8v2.05h1.5v.45a2.5 2.5 0 1 1-.2-3.2l1.55-1.35a4.35 4.35 0 0 0-3-1.65Z
+    M17.85 11.9a2.5 2.5 0 0 0 0 5 2.5 2.5 0 0 0 .45-.05v-1.5a1.05 1.05 0 1 1 .6-1.9Z
+  "/>
 </svg>
