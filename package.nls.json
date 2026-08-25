@@ -1,0 +1,10 @@
+{
+  "displayName": "GG Groups",
+  "description": "Your whole activity bar in one panel: every sidebar icon visible at once, grouped into folders you make by dragging one icon onto another.",
+  "cmd.show": "Extension groups",
+  "container.title": "GG Groups",
+  "view.name": "My extensions",
+  "cmd.diagnose": "Diagnostics",
+  "cmd.unhideAll": "Show all hidden icons",
+  "cmd.selfTest": "Check that everything works"
+}

@@ -1,0 +1,10 @@
+{
+  "displayName": "GG Groups",
+  "description": "Toda tu barra de actividad en un panel: cada icono de la barra lateral a la vista, agrupado en carpetas que creas arrastrando un icono sobre otro.",
+  "cmd.show": "Grupos de extensiones",
+  "container.title": "GG Groups",
+  "view.name": "Mis extensiones",
+  "cmd.diagnose": "Diagnóstico",
+  "cmd.unhideAll": "Recuperar todos los iconos ocultos",
+  "cmd.selfTest": "Comprobar que todo funciona"
+}

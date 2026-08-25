@@ -1,0 +1,114 @@
+{
+  "name": "view-groups",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "1.0.0",
+  "publisher": "niko",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./extension.js",
+  "l10n": "./l10n",
+  "activationEvents": [
+    "onCommand:viewGroups.diagnose",
+    "onCommand:viewGroups.selfTest",
+    "onCommand:viewGroups.show",
+    "onCommand:viewGroups.unhideAll",
+    "onView:viewGroups.board"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "viewGroups.show",
+        "title": "%cmd.show%",
+        "category": "%displayName%",
+        "icon": "$(extensions)"
+      },
+      {
+        "command": "viewGroups.diagnose",
+        "title": "%cmd.diagnose%",
+        "category": "%displayName%"
+      },
+      {
+        "command": "viewGroups.unhideAll",
+        "title": "%cmd.unhideAll%",
+        "category": "%displayName%"
+      },
+      {
+        "command": "viewGroups.selfTest",
+        "title": "%cmd.selfTest%",
+        "category": "%displayName%"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "viewGroups.show",
+          "group": "navigation@100"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "viewGroups.show"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "viewGroups.show",
+        "key": "ctrl+alt+e",
+        "mac": "cmd+alt+e"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "viewGroups",
+          "title": "%container.title%",
+          "icon": "media/folder.svg"
+        }
+      ]
+    },
+    "views": {
+      "viewGroups": [
+        {
+          "id": "viewGroups.board",
+          "name": "%view.name%",
+          "type": "webview"
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "@vscode/codicons": "^0.0.46-24",
+    "jsdom": "^29.1.1"
+  },
+  "scripts": {
+    "test": "node test/run.js"
+  },
+  "icon": "media/gg-groups.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Niko-Vanetti/gg-groups.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Niko-Vanetti/gg-groups/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "activity bar",
+    "sidebar",
+    "icons",
+    "groups",
+    "folders",
+    "organize",
+    "productivity"
+  ],
+  "galleryBanner": {
+    "color": "#1565C0",
+    "theme": "dark"
+  }
+}

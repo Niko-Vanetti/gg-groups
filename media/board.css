@@ -1,0 +1,236 @@
+/* Vive dentro de la barra lateral. A 48px de ancho se ve igual que la barra de actividad;
+   al ancho normal del Explorador la cuadricula llena la fila. */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--vscode-font-family);
+  font-size: 11px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background, transparent);
+  user-select: none;
+  cursor: default;
+}
+
+#rail {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#items {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 0 8px;
+}
+#items::-webkit-scrollbar { width: 8px; }
+#items::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background); }
+
+#actions {
+  flex: none;
+  display: flex;
+  border-top: 1px solid var(--vscode-sideBarSectionHeader-border, rgba(128, 128, 128, .25));
+}
+
+#hint {
+  flex: none;
+  padding: 4px 8px 6px;
+  font-size: 10px;
+  font-style: italic;
+  opacity: .45;
+  line-height: 1.25;
+}
+
+.cell {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--vscode-activityBar-inactiveForeground, var(--vscode-foreground));
+  border-left: 2px solid transparent;
+}
+.cell:hover { color: var(--vscode-activityBar-foreground, var(--vscode-foreground)); }
+.cell:hover img, .cell:hover .glyph, .cell:hover .mask { opacity: 1; }
+.cell.active {
+  border-left-color: var(--vscode-activityBar-activeBorder, var(--vscode-focusBorder));
+  background: var(--vscode-list-activeSelectionBackground, transparent);
+  color: var(--vscode-activityBar-foreground, var(--vscode-foreground));
+}
+.cell.active img, .cell.active .glyph, .cell.active .mask { opacity: 1; }
+
+.cell img, .cell .glyph, .cell .mask {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  object-fit: contain;
+  opacity: .78;
+}
+.cell .glyph {
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+
+/* Dibujo de un solo color: se pinta con el color del tema, como los iconos nativos. */
+.cell .mask {
+  background-color: currentColor;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+/* Carpeta: ocupa la fila entera para que se lea el nombre. */
+.cell.folder {
+  width: 100%;
+  height: 26px;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 8px 0 6px;
+  color: var(--vscode-sideBarSectionHeader-foreground, var(--vscode-foreground));
+  background: var(--vscode-sideBarSectionHeader-background, transparent);
+}
+.cell.folder:hover { background: var(--vscode-list-hoverBackground); }
+.cell.folder .folder-icon { font-size: 11px; line-height: 1; opacity: .85; }
+.cell.folder .folder-name {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cell.folder .badge {
+  position: static;
+  min-width: 16px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 15px;
+  text-align: center;
+  color: var(--vscode-activityBarBadge-foreground, #fff);
+  background: var(--vscode-activityBarBadge-background, #007acc);
+}
+
+/* Iconos que viven dentro de una carpeta desplegada */
+.kids {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 0 4px 10px;
+  padding: 2px 0;
+  border-left: 2px solid var(--vscode-activityBar-activeBorder, var(--vscode-focusBorder));
+}
+.kids .cell { width: 44px; height: 44px; border-left-width: 0; }
+.kids .cell img, .kids .cell .glyph, .kids .cell .mask { width: 22px; height: 22px; }
+.kids .empty { width: 100%; height: 22px; text-align: center; opacity: .4; }
+
+.sep {
+  flex-basis: 100%;
+  height: 1px;
+  margin: 6px 10px;
+  background: var(--vscode-sideBarSectionHeader-border, rgba(128, 128, 128, .3));
+}
+
+.action {
+  width: auto;
+  font-weight: 600;
+  flex: 1;
+  height: 30px;
+  font-size: 14px;
+  border-left-width: 0;
+  opacity: .8;
+}
+.action:hover { opacity: 1; background: var(--vscode-list-hoverBackground); }
+
+.dragging { opacity: .35; }
+.cell.over { outline: 1px dashed var(--vscode-focusBorder); outline-offset: -2px; }
+.kids.over { background: var(--vscode-list-dropBackground, rgba(128, 128, 128, .15)); }
+
+#menu {
+  position: fixed;
+  z-index: 10;
+  min-width: 150px;
+  padding: 4px;
+  border-radius: 5px;
+  border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border, transparent));
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .35);
+}
+#menu div { padding: 4px 10px; border-radius: 3px; font-size: 12px; }
+#menu div:hover { background: var(--vscode-menu-selectionBackground); color: var(--vscode-menu-selectionForeground); }
+
+/* Linea de insercion al colocar entre iconos, como en la barra lateral real. */
+.cell.ins-before { box-shadow: inset 2px 0 0 var(--vscode-focusBorder); }
+.cell.ins-after { box-shadow: inset -2px 0 0 var(--vscode-focusBorder); }
+.cell.folder.ins-before { box-shadow: inset 0 2px 0 var(--vscode-focusBorder); }
+.cell.folder.ins-after { box-shadow: inset 0 -2px 0 var(--vscode-focusBorder); }
+
+/* Pila: varios iconos con el mismo nombre bajo uno solo, con el numero en la esquina. */
+.cell .count {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+  color: var(--vscode-activityBarBadge-foreground, #fff);
+  background: var(--vscode-activityBarBadge-background, #007acc);
+}
+.cell.stack.open { background: var(--vscode-list-hoverBackground); }
+.kids.pile { border-left-color: var(--vscode-activityBarBadge-background, #007acc); }
+
+/* Icono que el usuario mando a ocultar, visible solo mientras revisa los ocultos. */
+.cell.faded img, .cell.faded .glyph, .cell.faded .mask { opacity: .3; }
+.cell.faded:hover img, .cell.faded:hover .glyph, .cell.faded:hover .mask { opacity: .7; }
+
+#actions { flex-wrap: wrap; }
+.action { flex: 1 1 38px; }
+.action.on { color: var(--vscode-activityBarBadge-background, #007acc); opacity: 1; }
+
+/* Bloque nativo: fijo, sin arrastre. */
+.cell.locked { cursor: default; }
+.cell.folder.locked .folder-name { opacity: .7; }
+
+/* Extension apagada: no se carga al arrancar VS Code. Se ve, pero en gris. */
+.cell.off img, .cell.off .glyph, .cell.off .mask { opacity: .3; filter: grayscale(1); }
+.cell.off:hover img, .cell.off:hover .glyph, .cell.off:hover .mask { opacity: .6; }
+.cell.off::after {
+  content: '';
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vscode-descriptionForeground, #888);
+}
