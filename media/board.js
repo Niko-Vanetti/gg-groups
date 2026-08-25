@@ -120,9 +120,12 @@
     if (t.renamed) rows.push([S.resetName, () => post({ type: 'resetName', key: t.key })]);
     // El interruptor: los iconos de fabrica y el propio tablero no se apagan.
     if (!t.fixed) {
-      rows.push(t.off
-        ? [S.enable, () => post({ type: 'enable', key: t.key })]
-        : [S.disable, () => post({ type: 'disable', key: t.key })]);
+      if (t.off) {
+        rows.push([S.enable, () => post({ type: 'enable', key: t.key })]);
+        rows.push([S.forget, () => post({ type: 'forget', key: t.key })]);
+      } else {
+        rows.push([S.disable, () => post({ type: 'disable', key: t.key })]);
+      }
     }
     rows.push(t.hidden
       ? [S.unhide, () => post({ type: 'unhide', keys: [t.key] })]

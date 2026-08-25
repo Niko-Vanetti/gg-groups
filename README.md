@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-140%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-142%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -38,7 +38,7 @@ obvious way: drag one icon onto another, name the folder, done.
 | **Stack duplicates** | Three icons called *Claude Code* collapse into one with a **3** |
 | **Rename anything** | Icons and folders, whatever makes sense to you |
 | **Hide the noise** | Right-click → hide. The eye button brings them all back |
-| **Turn extensions off** | Not just hidden — actually disabled, so they never load again |
+| **Disabled ones stay visible** | Turn one off and it greys out at the bottom instead of vanishing, one click from coming back |
 | **Native block, locked** | Explorer, Search, Source Control, Run and Debug, Extensions — pinned on top, in VS Code's own order, indestructible |
 
 </div>
@@ -95,6 +95,12 @@ a letter. Monochrome art is masked so it takes your theme's color instead of ren
 **It follows your OS language, not VS Code's.** English and Spanish included. On Windows the
 extension host reports VS Code's locale rather than the system's, so it asks Windows directly.
 
+**Disabling is VS Code's job, not ours.** No API lets an extension disable another, and the
+workbench commands either don't exist or accept the call and quietly ignore it. So GG Groups
+takes you to the extension's page, where the button works, and reports state from fact rather
+than intent: an icon greys out when VS Code genuinely stops loading it — however you turned
+it off.
+
 **Your setup is yours.** Folders, order, names, hidden and disabled icons live in VS Code's
 extension storage. Nothing is written to your settings, and nothing leaves your machine.
 
@@ -109,7 +115,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 140 tests, no VS Code needed
+npm test      # 142 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

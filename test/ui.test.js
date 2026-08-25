@@ -12,7 +12,7 @@ const STR = {
   hide: 'Ocultar icono', unhide: 'Mostrar icono',
   showHiddenOn: 'Ver ocultos', showHiddenOff: 'Dejar de ver ocultos', dock: 'Mover a otra barra',
   unhideAll: 'Recuperar todos los ocultos',
-  disable: 'Desactivar la extension', enable: 'Activar la extension',
+  disable: 'Desactivar la extension', enable: 'Activar la extension', forget: 'Quitar del tablero',
 };
 
 /** Monta el webview igual que lo monta la extension y devuelve utilidades para toquetearlo. */
@@ -379,7 +379,7 @@ test('UI: apagar una extension desde su menu', () => {
   assert.deepStrictEqual(ui.last(), { type: 'disable', key: 'c:a' });
 });
 
-test('UI: una apagada se ve en gris y se enciende con un clic', () => {
+test('UI: una apagada se ve en gris y ofrece encenderla o quitarla', () => {
   const ui = mount({ loose: [tile('c:a', { off: true })] });
   const c = ui.cells()[0];
   assert.ok(c.className.includes('off'), 'no se distingue de una encendida');
@@ -388,9 +388,12 @@ test('UI: una apagada se ve en gris y se enciende con un clic', () => {
   assert.deepStrictEqual(ui.last(), { type: 'open', key: 'c:a' });
   c.oncontextmenu(ui.ev());
   const rows = [...ui.doc.getElementById('menu').children];
-  assert.deepStrictEqual(rows.map((r) => r.textContent), [STR.renameTile, STR.enable, STR.hide]);
+  assert.deepStrictEqual(rows.map((r) => r.textContent), [STR.renameTile, STR.enable, STR.forget, STR.hide]);
   rows[1].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'enable', key: 'c:a' });
+  c.oncontextmenu(ui.ev());
+  [...ui.doc.getElementById('menu').children][2].onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'forget', key: 'c:a' });
 });
 
 test('UI: los iconos de fabrica no ofrecen interruptor', () => {

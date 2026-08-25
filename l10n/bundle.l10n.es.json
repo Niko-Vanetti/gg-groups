@@ -30,13 +30,12 @@
   "Move the board to the right bar": "Llevar el tablero a la barra derecha",
   "Chat": "Chat",
   "Show all hidden icons": "Recuperar todos los ocultos",
-  "Turn extension off": "Desactivar la extensión",
-  "Turn extension on": "Activar la extensión",
-  "Reload": "Recargar",
-  "Reload VS Code to apply the change.": "Recarga VS Code para aplicar el cambio.",
   "Everything checks out.": "Todo correcto.",
   "The check found {0} problem(s).": "La comprobación encontró {0} problema(s).",
-  "Use the Disable button on this page: this VS Code does not allow it from outside.": "Usa el botón Deshabilitar de esta ficha: esta versión de VS Code no lo permite desde fuera.",
-  "Use the Enable button on this page: this VS Code does not allow it from outside.": "Usa el botón Habilitar de esta ficha: esta versión de VS Code no lo permite desde fuera.",
-  "GG Groups check": "Comprobación de GG Groups"
+  "GG Groups check": "Comprobación de GG Groups",
+  "Turn extension off...": "Desactivar la extensión...",
+  "Turn extension on...": "Activar la extensión...",
+  "Remove from the board": "Quitar del tablero",
+  "Press Disable there. When you reload, it will show greyed out here.": "Pulsa Deshabilitar ahí. Al recargar, aparecerá en gris en el tablero.",
+  "Press Enable there. When you reload, it will come back to its place.": "Pulsa Habilitar ahí. Al recargar, volverá a su sitio en el tablero."
 }

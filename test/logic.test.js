@@ -777,19 +777,26 @@ test('los contenedores de depuracion de Copilot no salen', () => {
   }
 });
 
-// --- interruptor de activacion ---
+// --- extensiones apagadas ---
 
-/** Board con los comandos de VS Code interceptados y control sobre que extensiones "existen". */
+/**
+ * Board con los comandos interceptados y control sobre que extensiones "existen".
+ * Apagar una extension se simula quitandola de vscode.extensions.all, que es exactamente
+ * lo que hace VS Code tras deshabilitarla y recargar.
+ */
 function switchBoard(comandos, initial) {
   const b = makeBoard(initial);
   b.ejecutados = [];
   const realExec = stub.commands.executeCommand, realCmds = stub.commands.getCommands, realAll = stub.extensions.all;
-  stub.commands.getCommands = async () => null;              // no filtrar por comandos
+  // La lista de comandos no se usa para filtrar aqui: si se pasara `comandos`, keepClickable
+  // dejaria el tablero vacio y no habria baldosas sobre las que probar nada.
+  stub.commands.getCommands = async () => null;
   stub.commands.executeCommand = async (c, arg) => {
     b.ejecutados.push([c, arg]);
     if (comandos && !comandos.includes(c)) throw new Error('comando desconocido');
   };
-  b.desinstalar = (id) => { stub.extensions.all = realAll.filter((e) => e.id !== id); };
+  b.desactivar = (id) => { stub.extensions.all = stub.extensions.all.filter((e) => e.id !== id); };
+  b.reactivar = () => { stub.extensions.all = realAll; };
   b.restore = () => {
     stub.commands.executeCommand = realExec;
     stub.commands.getCommands = realCmds;
@@ -798,142 +805,139 @@ function switchBoard(comandos, initial) {
   return b;
 }
 
-test('apagar una extension la recuerda y usa el comando de VS Code', async () => {
-  const b = switchBoard(['workbench.extensions.disableExtension']);
+test('pulsar apagar lleva a la ficha de la extension, que es donde se puede', async () => {
+  // VS Code no expone desactivar extensiones a las extensiones: fingirlo era el fallo.
+  const b = switchBoard(['extension.open']);
   await b.refresh();
   const tile = b.tiles.find((x) => x.key === 'c:buildView');
-  assert.ok(tile, 'no esta la extension de prueba');
   await b.disable(tile.key);
-  assert.deepStrictEqual(b.ejecutados.filter(([c]) => /disable/i.test(c)),
-    [['workbench.extensions.disableExtension', tile.ext]]);
-  assert.deepStrictEqual(b.off.map((o) => o.key), ['c:buildView'], 'no se guardo para poder volver');
+  assert.deepStrictEqual(b.ejecutados, [['extension.open', tile.ext]]);
+  assert.strictEqual(infos.length > 0, true, 'deberia explicar que hacer alli');
   b.restore();
 });
 
-test('la apagada sigue en el tablero aunque VS Code ya no la cargue', async () => {
-  const b = switchBoard(['workbench.extensions.disableExtension']);
+test('no se marca nada en gris solo por haberlo intentado', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  await b.disable('c:buildView');
   await b.refresh();
   const tile = b.tiles.find((x) => x.key === 'c:buildView');
-  await b.disable(tile.key);
-  b.desinstalar(tile.ext);                                   // asi la ve VS Code tras recargar
-  await b.refresh();
-  const dormida = b.tiles.find((x) => x.key === 'c:buildView');
-  assert.ok(dormida, 'se perdio: no habria forma de volver a encenderla');
-  assert.strictEqual(dormida.off, true);
-  assert.strictEqual(dormida.label, tile.label, 'deberia conservar su nombre');
-  assert.ok(dormida.icon, 'deberia conservar su icono');
-  assert.strictEqual(b.last().loose.concat(b.last().folders.flatMap((f) => f.tiles))
-    .find((x) => x.key === 'c:buildView').off, true);
-  b.restore();
-});
-
-test('encenderla la quita de la lista de apagadas', async () => {
-  const b = switchBoard(['workbench.extensions.disableExtension', 'workbench.extensions.enableExtension']);
-  await b.refresh();
-  const tile = b.tiles.find((x) => x.key === 'c:buildView');
-  await b.disable(tile.key);
-  b.desinstalar(tile.ext);
-  await b.refresh();
-  await b.enable('c:buildView');
+  assert.ok(!tile.off, 'seguia cargandose y aun asi se pintaba apagada');
   assert.deepStrictEqual(b.off, []);
-  assert.deepStrictEqual(b.ejecutados.filter(([c]) => /enable/i.test(c)),
-    [['workbench.extensions.enableExtension', tile.ext]]);
   b.restore();
 });
 
-test('pulsar una apagada la enciende en vez de abrirla', async () => {
-  const b = switchBoard(['workbench.extensions.disableExtension', 'workbench.extensions.enableExtension']);
+test('una extension que VS Code deja de cargar aparece apagada', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();                                          // queda en el catalogo
+  b.desactivar('acme.build');                                 // el usuario la deshabilito y recargo
   await b.refresh();
   const tile = b.tiles.find((x) => x.key === 'c:buildView');
-  await b.disable(tile.key);
-  b.desinstalar(tile.ext);
+  assert.ok(tile, 'se perdio: no habria forma de volver a encenderla');
+  assert.strictEqual(tile.off, true);
+  assert.strictEqual(tile.label, 'Build', 'deberia conservar su nombre');
+  assert.ok(tile.icon, 'deberia conservar su icono');
+  b.restore();
+});
+
+test('da igual si se apago desde el tablero o desde la vista de extensiones', async () => {
+  // El estado se deduce del hecho, no de la intencion, asi que ambos caminos se ven igual.
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.notes');
+  await b.refresh();
+  assert.deepStrictEqual(b.off.map((o) => o.key), ['c:notesView']);
+  b.restore();
+});
+
+test('al volver a cargarse recupera su sitio y deja de estar en gris', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.build');
+  await b.refresh();
+  assert.strictEqual(b.tiles.find((x) => x.key === 'c:buildView').off, true);
+  b.reactivar();
+  await b.refresh();
+  assert.ok(!b.tiles.find((x) => x.key === 'c:buildView').off);
+  assert.deepStrictEqual(b.off, []);
+  b.restore();
+});
+
+test('pulsar una apagada lleva a su ficha para encenderla', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.build');
   await b.refresh();
   b.ejecutados.length = 0;
   await b.open('c:buildView');
-  assert.ok(b.ejecutados.some(([c]) => /enable/i.test(c)), 'deberia encenderla');
-  assert.ok(!b.ejecutados.some(([c]) => c === tile.cmd), 'no debe intentar abrir lo que no esta cargado');
+  assert.deepStrictEqual(b.ejecutados, [['extension.open', 'acme.build']]);
+  b.restore();
+});
+
+test('se puede quitar del tablero una apagada que ya no interesa', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.build');
+  await b.refresh();
+  await b.forget('c:buildView');
+  assert.ok(!b.tiles.some((x) => x.key === 'c:buildView'), 'seguia ahi');
+  assert.deepStrictEqual(b.off, []);
   b.restore();
 });
 
 test('ni los iconos de fabrica ni el propio tablero se pueden apagar', async () => {
-  const b = switchBoard(['workbench.extensions.disableExtension']);
+  const b = switchBoard(['extension.open']);
   await b.refresh();
-  for (const k of [...NATIVE_KEYS, 'k:chat', 'c:viewGroups']) {
-    await b.disable(k);
-  }
-  assert.deepStrictEqual(b.off, [], 'apago algo que no debia');
+  for (const k of [...NATIVE_KEYS, 'k:chat', 'c:viewGroups']) await b.disable(k);
   assert.deepStrictEqual(b.ejecutados, []);
   b.restore();
 });
 
-test('sin comando de apagado, abre la ficha de la extension en vez de fallar', async () => {
-  const b = switchBoard([]);                                  // ningun comando responde
+test('el catalogo no guarda los iconos de fabrica', async () => {
+  const b = switchBoard(['extension.open']);
   await b.refresh();
-  avisos.length = 0;
-  await b.disable('c:buildView');
-  assert.strictEqual(avisos.length, 1, 'no explico que hacer');
-  assert.ok(b.ejecutados.some(([c]) => c === 'extension.open' || /extensions\.search/.test(c)),
-    'deberia llevar al usuario a la ficha');
-  assert.deepStrictEqual(b.off, [], 'no debe darse por apagada');
+  assert.deepStrictEqual(b.seen.filter((o) => o.ext === 'vscode'), []);
   b.restore();
 });
 
-test('prueba el nombre alternativo del comando si el primero falla', async () => {
-  const b = switchBoard(['workbench.extensions.action.disableExtension']);
+test('el estado mentiroso de la version anterior se descarta al arrancar', async () => {
+  // 0.23–0.26 anotaban "apagada" por intencion: extensiones cargadas salian en gris.
+  const b = switchBoard(['extension.open'], {
+    'viewGroups.off': [{ ext: 'acme.build', key: 'c:buildView', label: 'Build' }],
+  });
   await b.refresh();
-  await b.disable('c:buildView');
-  assert.deepStrictEqual(b.ejecutados.map(([c]) => c), [
-    'workbench.extensions.disableExtension',
-    'workbench.extensions.action.disableExtension',
-  ]);
-  assert.strictEqual(b.off.length, 1);
+  assert.strictEqual(b.store.get('viewGroups.off'), undefined, 'no se limpio');
+  assert.ok(!b.tiles.find((x) => x.key === 'c:buildView').off, 'seguia mintiendo');
   b.restore();
-});
-
-test('una lista de comandos vacia o rara no deja el tablero en blanco', async () => {
-  const real = stub.commands.getCommands;
-  for (const respuesta of [[], null, undefined, 'no es una lista', 42]) {
-    stub.commands.getCommands = async () => respuesta;
-    const kept = await keepClickable(discover(CTX));
-    assert.strictEqual(kept.length, discover(CTX).length, 'se vacio con ' + JSON.stringify(respuesta));
-  }
-  stub.commands.getCommands = real;
 });
 
 // --- correcciones de la revision ---
 
-test('el icono se ve apagado en el momento, sin esperar a recargar', async () => {
-  const b = switchBoard(['workbench.extensions.disableExtension']);
+test('el webview recibe la marca de apagada', async () => {
+  const b = switchBoard(['extension.open']);
   await b.refresh();
-  const tile = b.tiles.find((x) => x.key === 'c:buildView');
-  await b.disable(tile.key);
-  // VS Code todavia la tiene cargada: aun asi debe verse apagada.
-  assert.ok(stub.extensions.all.some((e) => e.id === tile.ext), 'el escenario ya no sirve');
-  const ahora = b.tiles.find((x) => x.key === 'c:buildView');
-  assert.strictEqual(ahora.off, true, 'el interruptor parecia no hacer nada');
-  assert.strictEqual(b.last().loose.concat(b.last().folders.flatMap((f) => f.tiles))
-    .find((x) => x.key === 'c:buildView').off, true);
+  b.desactivar('acme.build');
+  await b.refresh();
+  const pintadas = b.last().loose.concat(b.last().folders.flatMap((f) => f.tiles));
+  assert.strictEqual(pintadas.find((x) => x.key === 'c:buildView').off, true);
   b.restore();
 });
 
-test('un fallo al apagar no deja el icono en gris para siempre', async () => {
+test('si no se puede abrir la ficha, no se rompe nada', async () => {
   const b = switchBoard([]);                                  // ningun comando responde
   await b.refresh();
-  avisos.length = 0;
   await b.disable('c:buildView');
-  assert.strictEqual(avisos.length, 1);
-  assert.deepStrictEqual(b.off, [], 'quedo anotada como apagada sin haberlo conseguido');
-  await b.refresh();
-  assert.ok(!b.tiles.find((x) => x.key === 'c:buildView').off, 'y encima se veria apagada');
+  assert.deepStrictEqual(b.off, []);
   b.restore();
 });
 
-test('no se apagan dos veces ni se duplica la anotacion', async () => {
-  const b = switchBoard(['workbench.extensions.disableExtension']);
+test('el catalogo no duplica entradas al refrescar muchas veces', async () => {
+  const b = switchBoard(['extension.open']);
   await b.refresh();
-  await b.disable('c:buildView');
-  await b.disable('c:buildView');                            // ya esta apagada
-  assert.strictEqual(b.off.length, 1);
+  await b.refresh();
+  await b.refresh();
+  const claves = b.seen.map((o) => o.key);
+  assert.strictEqual(new Set(claves).size, claves.length);
   b.restore();
 });
 
@@ -1042,15 +1046,15 @@ test('la comprobacion escribe un informe legible', async () => {
 
 // --- las apagadas se van al final ---
 
-test('al apagar una, su icono baja al final de la lista', async () => {
-  const b = switchBoard(['workbench.extensions.disableExtension']);
+test('una apagada baja al final de la lista', async () => {
+  const b = switchBoard(['extension.open']);
   await b.refresh();
   const antes = b.looseTiles().map((x) => x.key);
-  const victima = antes[0];                                   // la primera de todas
-  await b.disable(victima);
+  b.desactivar('acme.build');
+  await b.refresh();
   const despues = b.looseTiles().map((x) => x.key);
-  assert.strictEqual(despues[despues.length - 1], victima, 'no se fue al fondo');
-  assert.deepStrictEqual(despues.filter((k) => k !== victima), antes.filter((k) => k !== victima),
+  assert.strictEqual(despues[despues.length - 1], 'c:buildView', 'no se fue al fondo');
+  assert.deepStrictEqual(despues.filter((k) => k !== 'c:buildView'), antes.filter((k) => k !== 'c:buildView'),
     'las demas deben quedarse donde estaban');
   b.restore();
 });
@@ -1068,46 +1072,40 @@ test('entre apagadas mandan las letras, no el orden manual', async () => {
   b.restore();
 });
 
-test('dentro de una carpeta tambien se van al fondo', async () => {
-  const b = switchBoard(['workbench.extensions.disableExtension']);
+test('dentro de una carpeta tambien baja al fondo', async () => {
+  const b = switchBoard(['extension.open']);
   await b.refresh();
-  // De extensiones distintas: apagar una apaga todos los iconos de esa misma extension.
-  const vistas = new Set();
-  const dentro = b.tiles
-    .filter((x) => !x.native && !x.off && x.ext !== 'vscode' && !vistas.has(x.ext) && vistas.add(x.ext))
-    .slice(0, 3).map((x) => x.key);
-  assert.strictEqual(dentro.length, 3, 'hacen falta tres extensiones distintas');
+  const dentro = ['c:notesView', 'c:buildView', 'c:keysView'];
   b.store.set('viewGroups.folders', [{ name: 'A', keys: dentro }]);
-  await b.disable(dentro[0]);
+  b.desactivar('acme.build');
+  await b.refresh();
   const carpeta = b.last().folders.find((f) => f.name === 'A');
-  assert.strictEqual(carpeta.tiles[carpeta.tiles.length - 1].key, dentro[0], 'no bajo dentro de la carpeta');
-  assert.deepStrictEqual(carpeta.tiles.slice(0, 2).map((x) => x.key), dentro.slice(1),
+  assert.strictEqual(carpeta.tiles[carpeta.tiles.length - 1].key, 'c:buildView');
+  assert.deepStrictEqual(carpeta.tiles.slice(0, 2).map((x) => x.key), ['c:notesView', 'c:keysView'],
     'las encendidas conservan su orden');
   b.restore();
 });
 
-test('al encenderla vuelve a su sitio por orden alfabetico', async () => {
-  const b = switchBoard(['workbench.extensions.disableExtension', 'workbench.extensions.enableExtension']);
+test('al volver a cargarse recupera su orden alfabetico', async () => {
+  const b = switchBoard(['extension.open']);
   await b.refresh();
-  const victima = b.looseTiles()[0].key;
-  await b.disable(victima);
-  assert.strictEqual(b.looseTiles().pop().key, victima);
-  await b.enable(victima);
-  const ahora = b.looseTiles();
-  assert.strictEqual(ahora[0].key, victima, 'deberia volver arriba, que es su sitio alfabetico');
-  assert.ok(!ahora[0].off);
+  const sitio = b.looseTiles().findIndex((x) => x.key === 'c:buildView');
+  b.desactivar('acme.build');
+  await b.refresh();
+  assert.strictEqual(b.looseTiles().pop().key, 'c:buildView');
+  b.reactivar();
+  await b.refresh();
+  assert.strictEqual(b.looseTiles().findIndex((x) => x.key === 'c:buildView'), sitio);
   b.restore();
 });
 
-test('apagar una extension apaga todos sus iconos a la vez', async () => {
-  // "Tasks" aporta dos contenedores: no tiene sentido que uno quede encendido y otro no.
-  const b = switchBoard(['workbench.extensions.disableExtension']);
+test('una extension con dos iconos los apaga los dos', async () => {
+  const b = switchBoard(['extension.open']);
   await b.refresh();
-  const claude = b.tiles.filter((x) => x.ext === 'acme.tasks');
-  assert.ok(claude.length >= 2, 'falta la pieza de prueba');
-  await b.disable(claude[0].key);
-  const despues = b.tiles.filter((x) => x.ext === 'acme.tasks');
-  assert.ok(despues.every((x) => x.off), 'quedaron iconos encendidos de una extension apagada');
-  assert.strictEqual(b.off.length, 1, 'y basta con anotarla una vez');
+  assert.ok(b.tiles.filter((x) => x.ext === 'acme.tasks').length >= 2, 'falta la pieza de prueba');
+  b.desactivar('acme.tasks');
+  await b.refresh();
+  const suyos = b.tiles.filter((x) => x.ext === 'acme.tasks');
+  assert.ok(suyos.length >= 2 && suyos.every((x) => x.off), 'quedo alguno encendido');
   b.restore();
 });

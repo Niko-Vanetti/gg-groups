@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-140%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-142%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -38,7 +38,7 @@ que creas de la forma evidente: arrastras un icono sobre otro, le pones nombre, 
 | **Apilar los repetidos** | Tres iconos llamados *Claude Code* se juntan en uno con un **3** |
 | **Renombrar lo que sea** | Iconos y carpetas, con el nombre que a ti te sirva |
 | **Esconder el ruido** | Clic derecho → ocultar. El botón del ojo los devuelve todos |
-| **Apagar extensiones** | No solo ocultarlas: desactivarlas de verdad, para que no vuelvan a cargarse |
+| **Las apagadas siguen a la vista** | Al desactivar una queda en gris al fondo en vez de desaparecer, a un clic de volver |
 | **Bloque nativo, blindado** | Explorador, Buscar, Control de código fuente, Ejecutar y depurar, Extensiones — fijos arriba, en el orden de VS Code, imposibles de romper |
 
 </div>
@@ -99,6 +99,12 @@ pintan con el color de tu tema en lugar de salir en negro.
 host de extensiones informa del idioma de VS Code y no del sistema, así que se le pregunta
 directamente a Windows.
 
+**Desactivar es cosa de VS Code, no nuestra.** Ninguna API deja que una extensión desactive
+a otra, y los comandos del workbench o no existen o aceptan la llamada y la ignoran en
+silencio. Así que GG Groups te lleva a la ficha de la extensión, donde el botón sí funciona,
+e informa del estado por el hecho y no por la intención: un icono se pone en gris cuando VS
+Code deja de cargarlo de verdad, lo hayas apagado desde donde lo hayas apagado.
+
 **Tu configuración es tuya.** Carpetas, orden, nombres, ocultos y apagados viven en el
 almacenamiento de la extensión. No se escribe nada en tus ajustes, y nada sale de tu equipo.
 
@@ -113,7 +119,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 140 pruebas, sin necesidad de VS Code
+npm test      # 142 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

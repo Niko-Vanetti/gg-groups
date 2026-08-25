@@ -10,17 +10,18 @@ const KEY_SHOW_HIDDEN = 'viewGroups.showHidden';
 const KEY_SEEDED = 'viewGroups.seeded';
 const KEY_DOCKED = 'viewGroups.docked';
 const KEY_LOCALE = 'viewGroups.locale';
-const KEY_OFF = 'viewGroups.off';
+// Catalogo de lo que se ha visto alguna vez, para reconocer lo que ya no esta cargado.
+const KEY_SEEN = 'viewGroups.seen';
+const KEY_OFF = 'viewGroups.off';               // solo para limpiar el estado de versiones viejas
 /**
- * VS Code no deja desactivar extensiones por API, pero si expone los comandos que usa
- * su propia vista de extensiones. El nombre ha variado entre versiones, asi que se
- * prueban por orden hasta que uno responda.
+ * Desactivar una extension NO se puede hacer por codigo: no hay API, y los comandos de
+ * `workbench` o no existen o aceptan la llamada y la ignoran sin avisar — resuelven bien
+ * y no desactivan nada. Fiarse de eso llevaba a pintar en gris extensiones que seguian
+ * cargandose en cada arranque. Asi que el estado ya no se supone: una extension figura
+ * apagada solo cuando VS Code deja de cargarla de verdad, y para apagarla se lleva al
+ * usuario a su ficha, donde el boton si funciona.
  */
-const DISABLE_CMDS = ['workbench.extensions.disableExtension', 'workbench.extensions.action.disableExtension'];
-const ENABLE_CMDS = ['workbench.extensions.enableExtension', 'workbench.extensions.action.enableExtension'];
-// Y si esos no estan, se busca por patron entre los comandos que si existan aqui.
-const DISABLE_RE = /^workbench\.extensions?\..*disable.*extension/i;
-const ENABLE_RE = /^workbench\.extensions?\..*enable.*extension/i;
+const EXT_PAGE_CMDS = ['extension.open', 'workbench.extensions.search'];
 // VS Code ha ido cambiando el nombre de este comando; se busca por patron en vez de fijarlo.
 const MOVE_RIGHT = /^workbench\.action\.move.*View.*(SecondarySideBar|AuxiliaryBar)$/i;
 // Las dos barras laterales, y solo esas: lo que vive en el panel de abajo no es un icono de barra.
@@ -379,10 +380,20 @@ class Board {
     this.tiles = discover(ctx);
   }
 
-  /** Extensiones que el usuario apago: se recuerdan para poder volver a encenderlas. */
-  get off() {
-    const raw = this.ctx.globalState.get(KEY_OFF, []);
+  /**
+   * Todo lo que el tablero ha visto alguna vez. Sirve para seguir mostrando, en gris, lo
+   * que VS Code ya no carga: da igual si se desactivo desde aqui o desde la vista de
+   * extensiones, el resultado que se ve es el mismo porque se mira el hecho, no la intencion.
+   */
+  get seen() {
+    const raw = this.ctx.globalState.get(KEY_SEEN, []);
     return Array.isArray(raw) ? raw.filter((o) => o && typeof o.ext === 'string' && typeof o.key === 'string') : [];
+  }
+
+  /** Lo del catalogo que ahora mismo no esta cargado. */
+  get off() {
+    const present = new Set(vscode.extensions.all.map((e) => String(e.id).toLowerCase()));
+    return this.seen.filter((o) => !present.has(o.ext.toLowerCase()));
   }
 
   get folders() { return ensureNative(normalize(this.ctx.globalState.get(KEY_FOLDERS, [])), t('Native')); }
@@ -415,11 +426,23 @@ class Board {
    * guardado: si no, el interruptor se quedaria sin sitio desde donde volver a encenderlas.
    */
   async refresh() {
-    const apagadas = new Set(this.off.map((o) => o.ext.toLowerCase()));
-    // Una recien apagada sigue cargada hasta que se recargue la ventana: se marca ya,
-    // para que el interruptor se vea aplicado en el momento y no parezca que no hizo nada.
-    const live = (await keepClickable(discover(this.ctx)))
-      .map((x) => (apagadas.has(String(x.ext).toLowerCase()) ? { ...x, off: true } : x));
+    const live = await keepClickable(discover(this.ctx));
+
+    // El catalogo se pone al dia con lo que hay cargado ahora.
+    const catalogo = new Map(this.seen.map((o) => [o.key, o]));
+    for (const x of live) {
+      if (x.ext === 'vscode') continue;                       // los de fabrica no se apagan
+      catalogo.set(x.key, {
+        ext: x.ext, key: x.key, cmd: x.cmd, label: x.label, owner: x.owner,
+        iconPath: x.icon ? x.icon.uri.fsPath : null, mask: !!(x.icon && x.icon.mask),
+      });
+    }
+    await this.ctx.globalState.update(KEY_SEEN, [...catalogo.values()]);
+    if (this.ctx.globalState.get(KEY_OFF)) {
+      // Version anterior: marcaba apagadas por intencion, no por hecho. Se descarta.
+      await this.ctx.globalState.update(KEY_OFF, undefined);
+    }
+
     const vistos = new Set(live.map((x) => x.key));
     const dormidas = this.off
       .filter((o) => !vistos.has(o.key))
@@ -431,78 +454,43 @@ class Board {
     this.render();
   }
 
-  /**
-   * Ejecuta el primer comando que funcione. A los nombres conocidos se suman los que
-   * esta instalacion tenga registrados y encajen con el patron, porque VS Code les ha
-   * cambiado el nombre varias veces y fijarlos a ciegas es lo que fallaba.
-   */
-  async runFirst(candidates, arg, pattern) {
-    const lista = [...candidates];
-    if (pattern) {
-      try {
-        for (const c of await vscode.commands.getCommands(true)) {
-          if (pattern.test(c) && !lista.includes(c)) lista.push(c);
-        }
-      } catch { /* sin lista, se prueban solo los conocidos */ }
-    }
-    for (const cmd of lista) {
-      try {
-        await vscode.commands.executeCommand(cmd, arg);
-        return cmd;
-      } catch (e) {
-        console.error('[GG Groups] no se pudo ejecutar', cmd, e);
-      }
-    }
-    return null;
-  }
 
   /**
-   * Ultimo recurso cuando VS Code no expone ningun comando: se abre la ficha de la
-   * extension, donde el boton de desactivar esta a un clic. Mejor eso que un error seco.
+   * Lleva a la ficha de la extension en la vista de Extensiones. Es el unico sitio donde
+   * los botones de habilitar y deshabilitar funcionan de verdad.
    */
   async openExtensionPage(extId, motivo) {
-    try {
-      await vscode.commands.executeCommand('extension.open', extId);
-    } catch {
+    for (const cmd of EXT_PAGE_CMDS) {
       try {
-        await vscode.commands.executeCommand('workbench.extensions.search', '@id:' + extId);
-      } catch { /* ni eso */ }
+        await vscode.commands.executeCommand(cmd, cmd === 'extension.open' ? extId : '@id:' + extId);
+        break;
+      } catch { /* se prueba el siguiente */ }
     }
-    vscode.window.showWarningMessage(motivo);
+    if (motivo) vscode.window.showInformationMessage(motivo);
   }
 
-  /** Apaga una extension: no se cargara en los siguientes arranques de VS Code. */
+  /** Apagar: se abre su ficha para que el usuario pulse Deshabilitar. */
   async disable(key) {
     const tile = this.tiles.find((x) => x.key === key);
-    // Ni los iconos de fabrica ni este propio tablero se pueden apagar.
     if (!tile || tile.off || tile.native || !tile.ext || tile.ext === 'vscode') return;
-    const snapshot = {
-      ext: tile.ext, key: tile.key, cmd: tile.cmd, label: tile.label, owner: tile.owner,
-      iconPath: tile.icon ? tile.icon.uri.fsPath : null, mask: !!(tile.icon && tile.icon.mask),
-    };
-    // Primero se apaga de verdad; solo si funciona se anota. Al reves, un fallo dejaria
-    // el icono en gris para siempre sin haber apagado nada.
-    if (!(await this.runFirst(DISABLE_CMDS, tile.ext, DISABLE_RE))) {
-      await this.openExtensionPage(tile.ext, t('Use the Disable button on this page: this VS Code does not allow it from outside.'));
-      return;
-    }
-    await this.ctx.globalState.update(KEY_OFF, [...this.off.filter((o) => o.ext !== tile.ext), snapshot]);
-    await this.refresh();
-    this.offerReload();
+    await this.openExtensionPage(tile.ext, t('Press Disable there. When you reload, it will show greyed out here.'));
   }
 
-  /** Vuelve a encender una extension apagada. */
+  /** Encender: lo mismo, con el boton de Habilitar. */
   async enable(key) {
     const entry = this.off.find((o) => o.key === key);
     if (!entry) return;
-    if (!(await this.runFirst(ENABLE_CMDS, entry.ext, ENABLE_RE))) {
-      await this.openExtensionPage(entry.ext, t('Use the Enable button on this page: this VS Code does not allow it from outside.'));
-      return;
-    }
-    await this.ctx.globalState.update(KEY_OFF, this.off.filter((o) => o.key !== key));
-    await this.refresh();
-    this.offerReload();
+    await this.openExtensionPage(entry.ext, t('Press Enable there. When you reload, it will come back to its place.'));
   }
+
+  /** Deja de recordar una extension apagada: su icono desaparece del tablero. */
+  async forget(key) {
+    const quedan = this.seen.filter((o) => o.key !== key);
+    if (quedan.length === this.seen.length) return;
+    await this.ctx.globalState.update(KEY_SEEN, quedan);
+    await this.refresh();
+  }
+
 
   /**
    * Comprueba de verdad lo que la extension necesita para funcionar y devuelve la lista
@@ -548,11 +536,10 @@ class Board {
       for (const x of muertos) fallos.push(x.label + ': su comando no existe (' + x.cmd + ')');
     }
 
-    // 3. Capacidades opcionales: se informan, no son fallos.
-    const buscar = (re) => (known ? [...known].filter((c) => re.test(c)) : []);
+    // 3. Capacidades: se informan, no son fallos.
     say('');
-    say('apagar extensiones: ' + (buscar(DISABLE_RE).concat(DISABLE_CMDS.filter((c) => known && known.has(c)))[0]
-      || 'no disponible (se abrira la ficha de la extension)'));
+    say('apagar extensiones: se hace desde su ficha (VS Code no lo expone a las extensiones)');
+    say('apagadas ahora mismo: ' + (this.off.map((o) => o.label).join(', ') || 'ninguna'));
     say('mover a la barra derecha: ' + ((await this.moveCommands()).filter((c) => MOVE_RIGHT.test(c))[0]
       || 'no disponible (hay que arrastrar el icono)'));
 
@@ -568,12 +555,6 @@ class Board {
     say('carpetas: ' + folders.length + '  |  ocultos: ' + this.hidden.size + '  |  apagados: ' + this.off.length);
 
     return fallos;
-  }
-
-  async offerReload() {
-    const yes = t('Reload');
-    const pick = await vscode.window.showInformationMessage(t('Reload VS Code to apply the change.'), yes);
-    if (pick === yes) vscode.commands.executeCommand('workbench.action.reloadWindow');
   }
 
   /** La carpeta "Nativo" se siembra una sola vez, al final; despues es tuya. */
@@ -891,6 +872,8 @@ class Board {
         return this.disable(m.key);
       case 'enable':
         return this.enable(m.key);
+      case 'forget':
+        return this.forget(m.key);
       case 'unhideAll':
         await this.ctx.globalState.update(KEY_HIDDEN, []);
         return this.render();
@@ -926,7 +909,8 @@ class Board {
       newFolder: t('New folder'), refresh: t('Refresh'), sortAll: t('Sort everything A-Z'),
       sort: t('Sort A-Z'), rename: t('Rename folder'), renameTile: t('Rename icon'),
       resetName: t('Use original name'), remove: t('Remove from folder'), del: t('Delete folder'),
-      disable: t('Turn extension off'), enable: t('Turn extension on'),
+      disable: t('Turn extension off...'), enable: t('Turn extension on...'),
+      forget: t('Remove from the board'),
       hide: t('Hide icon'), unhide: t('Show icon'), showHiddenOn: t('Show hidden icons'),
       showHiddenOff: t('Stop showing hidden icons'), unhideAll: t('Show all hidden icons'),
       dock: t('Move the board to the right bar'),
