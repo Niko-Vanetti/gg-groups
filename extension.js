@@ -57,6 +57,8 @@ const NATIVE_KEYS = NATIVE.map(([k]) => k);
  */
 const CORE = [
   ['k:chat', 'workbench.action.chat.open', 'Chat', 'copilot'],
+  ['k:testing', 'workbench.view.testing', 'Testing', 'beaker'],
+  ['k:remote', 'workbench.view.remote', 'Remote Explorer', 'remote-explorer'],
 ];
 
 /**

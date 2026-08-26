@@ -37,5 +37,7 @@
   "Turn extension on...": "Activar la extensión...",
   "Remove from the board": "Quitar del tablero",
   "Press Disable there. When you reload, it will show greyed out here.": "Pulsa Deshabilitar ahí. Al recargar, aparecerá en gris en el tablero.",
-  "Press Enable there. When you reload, it will come back to its place.": "Pulsa Habilitar ahí. Al recargar, volverá a su sitio en el tablero."
+  "Press Enable there. When you reload, it will come back to its place.": "Pulsa Habilitar ahí. Al recargar, volverá a su sitio en el tablero.",
+  "Testing": "Pruebas",
+  "Remote Explorer": "Explorador remoto"
 }

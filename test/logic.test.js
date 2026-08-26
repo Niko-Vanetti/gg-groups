@@ -1110,3 +1110,21 @@ test('una extension con dos iconos los apaga los dos', async () => {
   assert.ok(suyos.length >= 2 && suyos.every((x) => x.off), 'quedo alguno encendido');
   b.restore();
 });
+
+test('Pruebas y Explorador remoto salen: son iconos de barra que VS Code monta por su cuenta', () => {
+  // No estan en ningun manifiesto, pero si en la barra real. Como el chat.
+  for (const key of ['k:testing', 'k:remote']) {
+    const tile = tiles.find((x) => x.key === key);
+    assert.ok(tile, 'falta ' + key);
+    assert.ok(tile.icon, key + ' se quedo sin dibujo');
+  }
+});
+
+test('si esta instalacion no los registra, desaparecen solos', async () => {
+  const registrados = tiles.filter((x) => x.key !== 'k:testing').map((x) => x.cmd);
+  const real = stub.commands.getCommands;
+  stub.commands.getCommands = async () => registrados;
+  const kept = await keepClickable(discover(CTX));
+  assert.ok(!kept.some((x) => x.key === 'k:testing'));
+  stub.commands.getCommands = real;
+});
