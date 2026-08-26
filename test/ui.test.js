@@ -14,6 +14,7 @@ const STR = {
   unhideAll: 'Recuperar todos los ocultos',
   disable: 'Desactivar la extension', enable: 'Activar la extension', forget: 'Quitar del tablero',
   uninstall: 'Desinstalar la extension',
+  scriptOff: 'Copiar la orden que la desactiva', scriptOn: 'Copiar la orden que la activa',
 };
 
 /** Monta el webview igual que lo monta la extension y devuelve utilidades para toquetearlo. */
@@ -149,15 +150,15 @@ test('UI: clic derecho en un agrupado ofrece sacarlo; en uno suelto no', () => {
   ui.doc.querySelector('.kids .cell').oncontextmenu(ui.ev());
   let rows = [...ui.doc.getElementById('menu').children];
   assert.deepStrictEqual(rows.map((r) => r.textContent),
-    [STR.renameTile, STR.disable, STR.uninstall, STR.hide, STR.remove]);
-  rows[4].onclick();
+    [STR.renameTile, STR.disable, STR.scriptOff, STR.uninstall, STR.hide, STR.remove]);
+  rows[5].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'ungroup', keys: ['c:a'] });
 
   // Uno suelto tiene menu, pero sin la opcion de sacarlo de ninguna carpeta.
   ui.cells().find((c) => c.dataset.key === 'c:z').oncontextmenu(ui.ev());
   rows = [...ui.doc.getElementById('menu').children];
   assert.deepStrictEqual(rows.map((r) => r.textContent),
-    [STR.renameTile, STR.disable, STR.uninstall, STR.hide]);
+    [STR.renameTile, STR.disable, STR.scriptOff, STR.uninstall, STR.hide]);
 });
 
 test('UI: clic derecho en la carpeta ofrece ordenar, renombrar y eliminar', () => {
@@ -372,7 +373,7 @@ test('UI: el menu de un icono ofrece renombrar, apagar, desinstalar y ocultar', 
   ui.cells()[0].oncontextmenu(ui.ev());
   const rows = [...ui.doc.getElementById('menu').children];
   assert.deepStrictEqual(rows.map((r) => r.textContent),
-    [STR.renameTile, STR.disable, STR.uninstall, STR.hide]);
+    [STR.renameTile, STR.disable, STR.scriptOff, STR.uninstall, STR.hide]);
   rows[0].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'renameTile', key: 'c:a' });
 });
@@ -393,11 +394,11 @@ test('UI: una apagada se ve en gris y ofrece encenderla o quitarla', () => {
   assert.deepStrictEqual(ui.last(), { type: 'open', key: 'c:a' });
   c.oncontextmenu(ui.ev());
   const rows = [...ui.doc.getElementById('menu').children];
-  assert.deepStrictEqual(rows.map((r) => r.textContent), [STR.renameTile, STR.enable, STR.forget, STR.hide]);
+  assert.deepStrictEqual(rows.map((r) => r.textContent), [STR.renameTile, STR.enable, STR.scriptOn, STR.forget, STR.hide]);
   rows[1].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'enable', key: 'c:a' });
   c.oncontextmenu(ui.ev());
-  [...ui.doc.getElementById('menu').children][2].onclick();
+  [...ui.doc.getElementById('menu').children][3].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'forget', key: 'c:a' });
 });
 
@@ -413,7 +414,7 @@ test('UI: un icono ya renombrado ofrece volver al nombre original', () => {
   ui.cells()[0].oncontextmenu(ui.ev());
   const rows = [...ui.doc.getElementById('menu').children];
   assert.deepStrictEqual(rows.map((r) => r.textContent),
-    [STR.renameTile, STR.resetName, STR.disable, STR.uninstall, STR.hide]);
+    [STR.renameTile, STR.resetName, STR.disable, STR.scriptOff, STR.uninstall, STR.hide]);
   rows[1].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'resetName', key: 'c:a' });
 });
@@ -425,8 +426,8 @@ test('UI: un icono oculto se ve atenuado y ofrece mostrarlo', () => {
   c.oncontextmenu(ui.ev());
   const rows = [...ui.doc.getElementById('menu').children];
   assert.deepStrictEqual(rows.map((r) => r.textContent),
-    [STR.renameTile, STR.disable, STR.uninstall, STR.unhide]);
-  rows[3].onclick();
+    [STR.renameTile, STR.disable, STR.scriptOff, STR.uninstall, STR.unhide]);
+  rows[4].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'unhide', keys: ['c:a'] });
 });
 
@@ -494,7 +495,7 @@ test('UI: desinstalar es una opcion aparte de apagar', () => {
   // Se separan a proposito: una es reversible al instante, la otra borra del disco.
   const ui = mount({ loose: [tile('c:a')] });
   ui.cells()[0].oncontextmenu(ui.ev());
-  [...ui.doc.getElementById('menu').children][2].onclick();
+  [...ui.doc.getElementById('menu').children][3].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'uninstall', key: 'c:a' });
 });
 
@@ -503,4 +504,16 @@ test('UI: una apagada no ofrece desinstalar, que ya no esta cargada', () => {
   ui.cells()[0].oncontextmenu(ui.ev());
   const rows = [...ui.doc.getElementById('menu').children];
   assert.ok(!rows.some((r) => r.textContent === STR.uninstall));
+});
+
+test('UI: el menu ofrece copiar la orden del guion, segun el estado', () => {
+  const encendida = mount({ loose: [tile('c:a')] });
+  encendida.cells()[0].oncontextmenu(encendida.ev());
+  [...encendida.doc.getElementById('menu').children][2].onclick();
+  assert.deepStrictEqual(encendida.last(), { type: 'script', key: 'c:a', action: 'disable' });
+
+  const apagada = mount({ loose: [tile('c:b', { off: true })] });
+  apagada.cells()[0].oncontextmenu(apagada.ev());
+  [...apagada.doc.getElementById('menu').children][2].onclick();
+  assert.deepStrictEqual(apagada.last(), { type: 'script', key: 'c:b', action: 'enable' });
 });

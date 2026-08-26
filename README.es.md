@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-151%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-152%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -67,7 +67,7 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 | **Arrastrar a la cabecera de una carpeta** | Lo mete dentro |
 | **Arrastrar a un borde** | Lo coloca entre dos iconos |
 | **Arrastrar al vacío** | Lo saca de su carpeta |
-| **Clic derecho en un icono** | Renombrar · apagar · desinstalar · ocultar |
+| **Clic derecho en un icono** | Renombrar · apagar · copiar la orden del guion · desinstalar · ocultar |
 | **Clic derecho en una carpeta** | Ordenar A–Z · renombrar · eliminar |
 | **＋ A↓ ◉ ⇥ ↻** | Nueva carpeta · ordenar todo · ver ocultos · llevar a la barra derecha · actualizar |
 
@@ -78,6 +78,26 @@ tablero se cierra. Llévalo a la **barra lateral secundaria** y se queda fijo mi
 demás se abre a la izquierda. GG Groups lo intenta solo la primera vez; si tu versión de VS
 Code no expone ese comando, pulsa **⇥** o arrastra el icono allí una vez — se recuerda para
 siempre.
+
+### Desactivar una de verdad, desde un guion
+
+VS Code no deja que una extensión desactive a otra, y de su CLI lo dice la propia ayuda de
+`--disable-extension`: *"no se persiste y solo tiene efecto en la ventana que abre ese
+comando"*. Pero la lista sí vive en la base de estado global de VS Code, bajo la clave
+`extensionsIdentifiers/disabled`, y eso sí se puede editar:
+
+```bash
+python scripts/gg-extensions.py list                # lo que tienes, y qué está activo
+python scripts/gg-extensions.py disable ms-vscode.cmake-tools vscjava.vscode-gradle
+python scripts/gg-extensions.py enable --all
+```
+
+**VS Code tiene que estar cerrado** — mantiene esa base en memoria y la vuelca al salir, así
+que lo que se escriba con el editor abierto se pierde. El guion se niega a seguir si lo
+encuentra abierto, y guarda una copia con fecha antes de cada escritura.
+
+Desde el tablero, clic derecho en un icono y *Copiar la orden que la desactiva*: la línea
+exacta, con su identificador ya puesto, va a parar al portapapeles.
 
 ## Decisiones de diseño que conviene saber
 
@@ -121,7 +141,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 151 pruebas, sin necesidad de VS Code
+npm test      # 152 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

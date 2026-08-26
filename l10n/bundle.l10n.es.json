@@ -43,5 +43,8 @@
   "Uninstall extension": "Desinstalar la extensión",
   "Uninstall": "Desinstalar",
   "Uninstall \"{0}\"? It is deleted from disk: to get it back you have to download it again.": "¿Desinstalar \"{0}\"? Se borra del disco: para recuperarla habría que descargarla otra vez.",
-  "Use the Uninstall button on this page.": "Usa el botón Desinstalar de esta ficha."
+  "Use the Uninstall button on this page.": "Usa el botón Desinstalar de esta ficha.",
+  "Copy the command that turns it off": "Copiar la orden que la desactiva",
+  "Copy the command that turns it on": "Copiar la orden que la activa",
+  "Copied. Close VS Code, run it in a terminal, and open it again:": "Copiada. Cierra VS Code, ejecútala en una terminal y vuelve a abrirlo:"
 }

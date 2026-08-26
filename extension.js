@@ -534,6 +534,25 @@ class Board {
     await this.refresh();
   }
 
+  /**
+   * Copia al portapapeles la orden del guion que desactiva esta extension de verdad.
+   * Se hace asi, y no ejecutandolo, porque el guion escribe en la base de estado de VS
+   * Code y eso solo vale con el editor cerrado: lo que se escribiera ahora lo sobreescribiria
+   * el propio VS Code al salir.
+   */
+  async copyScript(key, accion) {
+    const tile = this.tiles.find((x) => x.key === key) || this.off.find((o) => o.key === key);
+    if (!tile || !tile.ext || tile.ext === 'vscode') return;
+    const guion = vscode.Uri.joinPath(this.ctx.extensionUri, 'scripts', 'gg-extensions.py').fsPath;
+    const orden = `python "${guion}" ${accion} ${tile.ext}`;
+    try {
+      await vscode.env.clipboard.writeText(orden);
+    } catch { /* sin portapapeles, al menos se ve en el aviso */ }
+    vscode.window.showInformationMessage(t('Copied. Close VS Code, run it in a terminal, and open it again:'), {
+      modal: false, detail: orden,
+    });
+  }
+
   /** Deja de recordar una extension apagada: su icono desaparece del tablero. */
   async forget(key) {
     const quedan = this.seen.filter((o) => o.key !== key);
@@ -927,6 +946,8 @@ class Board {
         return this.forget(m.key);
       case 'uninstall':
         return this.uninstall(m.key);
+      case 'script':
+        return this.copyScript(m.key, typeof m.action === 'string' ? m.action : 'disable');
       case 'unhideAll':
         await this.ctx.globalState.update(KEY_HIDDEN, []);
         return this.render();
@@ -964,6 +985,8 @@ class Board {
       resetName: t('Use original name'), remove: t('Remove from folder'), del: t('Delete folder'),
       disable: t('Turn extension off...'), enable: t('Turn extension on...'),
       uninstall: t('Uninstall extension'), forget: t('Remove from the board'),
+      scriptOff: t('Copy the command that turns it off'),
+      scriptOn: t('Copy the command that turns it on'),
       hide: t('Hide icon'), unhide: t('Show icon'), showHiddenOn: t('Show hidden icons'),
       showHiddenOff: t('Stop showing hidden icons'), unhideAll: t('Show all hidden icons'),
       dock: t('Move the board to the right bar'),
