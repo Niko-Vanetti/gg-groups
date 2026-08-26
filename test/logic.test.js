@@ -399,10 +399,11 @@ test('la vista lateral se resuelve, se cablea y pinta al abrirse', () => {
 test('el HTML que sirve la extension trae los nodos y cadenas que espera el webview', () => {
   const b = makeBoard();
   const html = b.html({ asWebviewUri: (u) => 'vsc://' + u.fsPath, cspSource: 'vsc:' });
-  for (const id of ['id="rail"', 'id="items"', 'id="actions"', 'id="hint"']) {
+  for (const id of ['id="brand"', 'id="rail"', 'id="items"', 'id="actions"', 'id="hint"']) {
     assert.ok(html.includes(id), 'falta ' + id);
   }
   assert.ok(html.includes('board.css') && html.includes('board.js'));
+  assert.ok(html.includes('gg-groups.svg'), 'la cabecera se quedo sin logo');
   assert.ok(/nonce-\d+/.test(html) && html.includes("default-src 'none'"));
   const str = JSON.parse(html.match(/window\.STR = (\{.*?\});/s)[1]);
   for (const k of ['newFolder', 'refresh', 'sortAll', 'sort', 'rename', 'remove', 'del', 'hint']) {

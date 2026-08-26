@@ -18,7 +18,8 @@ const STR = {
 /** Monta el webview igual que lo monta la extension y devuelve utilidades para toquetearlo. */
 function mount(state) {
   const dom = new JSDOM(
-    `<body><div id="rail"><div id="items"></div><div id="actions"></div></div><div id="hint"></div></body>`,
+    `<body><div id="brand"><img><span>GG Groups</span></div>` +
+    `<div id="rail"><div id="items"></div><div id="actions"></div></div><div id="hint"></div></body>`,
     { runScripts: 'outside-only', pretendToBeVisual: true }
   );
   const { window } = dom;

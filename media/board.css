@@ -234,3 +234,31 @@ body {
   border-radius: 50%;
   background: var(--vscode-descriptionForeground, #888);
 }
+
+/* Cabecera propia: el encabezado que pinta VS Code no admite icono, asi que la marca
+   va aqui dentro, que es lo unico que la extension controla. */
+#brand {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px 7px;
+  border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, rgba(128, 128, 128, .22));
+}
+#brand img { width: 18px; height: 18px; flex: none; }
+#brand span {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--vscode-sideBarTitle-foreground, var(--vscode-foreground));
+  opacity: .85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A lo ancho de un icono, el nombre sobra: se queda solo el logo, centrado. */
+@media (max-width: 90px) {
+  #brand { justify-content: center; padding: 8px 0 7px; }
+  #brand span { display: none; }
+}

@@ -921,6 +921,7 @@ class Board {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${w.cspSource} data:; style-src ${w.cspSource}; script-src 'nonce-${nonce}';">
 <link rel="stylesheet" href="${uri('board.css')}">
 </head><body>
+<div id="brand"><img src="${uri('gg-groups.svg')}" alt=""><span>GG Groups</span></div>
 <div id="rail"><div id="items"></div><div id="actions"></div></div>
 <div id="hint"></div>
 <script nonce="${nonce}">window.STR = ${JSON.stringify(strings)};
