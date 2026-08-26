@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-142%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-151%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -67,7 +67,7 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 | **Arrastrar a la cabecera de una carpeta** | Lo mete dentro |
 | **Arrastrar a un borde** | Lo coloca entre dos iconos |
 | **Arrastrar al vacío** | Lo saca de su carpeta |
-| **Clic derecho en un icono** | Renombrar · apagar · ocultar |
+| **Clic derecho en un icono** | Renombrar · apagar · desinstalar · ocultar |
 | **Clic derecho en una carpeta** | Ordenar A–Z · renombrar · eliminar |
 | **＋ A↓ ◉ ⇥ ↻** | Nueva carpeta · ordenar todo · ver ocultos · llevar a la barra derecha · actualizar |
 
@@ -103,7 +103,9 @@ directamente a Windows.
 a otra, y los comandos del workbench o no existen o aceptan la llamada y la ignoran en
 silencio. Así que GG Groups te lleva a la ficha de la extensión, donde el botón sí funciona,
 e informa del estado por el hecho y no por la intención: un icono se pone en gris cuando VS
-Code deja de cargarlo de verdad, lo hayas apagado desde donde lo hayas apagado.
+Code deja de cargarlo de verdad, lo hayas apagado desde donde lo hayas apagado. Desinstalar
+sí se puede por código, así que eso ocurre en el sitio, tras una confirmación que dice claro
+que borra la extensión del disco.
 
 **Tu configuración es tuya.** Carpetas, orden, nombres, ocultos y apagados viven en el
 almacenamiento de la extensión. No se escribe nada en tus ajustes, y nada sale de tu equipo.
@@ -119,7 +121,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 142 pruebas, sin necesidad de VS Code
+npm test      # 151 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

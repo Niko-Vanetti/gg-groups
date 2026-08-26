@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-142%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-151%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -67,7 +67,7 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 | **Drag to a folder header** | Moves it in |
 | **Drag to an edge** | Places it between two icons |
 | **Drag to empty space** | Takes it out of its folder |
-| **Right-click an icon** | Rename · turn off · hide |
+| **Right-click an icon** | Rename · turn off · uninstall · hide |
 | **Right-click a folder** | Sort A–Z · rename · delete |
 | **＋ A↓ ◉ ⇥ ↻** | New folder · sort all · show hidden · move to right bar · refresh |
 
@@ -99,7 +99,8 @@ extension host reports VS Code's locale rather than the system's, so it asks Win
 workbench commands either don't exist or accept the call and quietly ignore it. So GG Groups
 takes you to the extension's page, where the button works, and reports state from fact rather
 than intent: an icon greys out when VS Code genuinely stops loading it — however you turned
-it off.
+it off. Uninstalling *is* scriptable, so that one happens in place, behind a confirmation
+that says plainly it deletes the extension from disk.
 
 **Your setup is yours.** Folders, order, names, hidden and disabled icons live in VS Code's
 extension storage. Nothing is written to your settings, and nothing leaves your machine.
@@ -115,7 +116,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 142 tests, no VS Code needed
+npm test      # 151 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

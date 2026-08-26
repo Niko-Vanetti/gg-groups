@@ -9,6 +9,7 @@ const infos = [];
 let infoAnswer = null;
 let quickAnswer = null;
 const avisos = [];
+let warnAnswer = null;
 // Ajustes simulados para evaluar las clausulas `when` que dependen de config.*
 const ajustes = { 'acme.showPanel': { defaultValue: false } };
 let registered = null;              // null = todos los comandos existen
@@ -22,7 +23,7 @@ const stub = {
     showInformationMessage: async (...a) => { infos.push(a); return infoAnswer; },
     showQuickPick: async (opciones) => opciones.find((o) => o.id === quickAnswer) || null,
     showErrorMessage: (m) => { throw new Error('error UI inesperado: ' + m); },
-    showWarningMessage: (m) => { avisos.push(m); },
+    showWarningMessage: (m, ...resto) => { avisos.push(m); return warnAnswer; },
     createOutputChannel: () => ({ appendLine() {}, clear() {}, show() {} }),
     registerWebviewViewProvider: () => ({ dispose() {} }),
   },
@@ -1127,4 +1128,67 @@ test('si esta instalacion no los registra, desaparecen solos', async () => {
   const kept = await keepClickable(discover(CTX));
   assert.ok(!kept.some((x) => x.key === 'k:testing'));
   stub.commands.getCommands = real;
+});
+
+// --- desinstalar: lo unico que si se puede hacer por codigo ---
+
+test('desinstalar pide confirmacion y sin ella no toca nada', async () => {
+  const b = switchBoard(['workbench.extensions.uninstallExtension']);
+  await b.refresh();
+  avisos.length = 0;
+  warnAnswer = null;                                          // el usuario cancela
+  await b.uninstall('c:buildView');
+  assert.strictEqual(avisos.length, 1, 'no aviso de que borra');
+  assert.ok(/desinstalar|uninstall/i.test(avisos[0]), 'el aviso no dice de que va');
+  assert.deepStrictEqual(b.ejecutados, [], 'desinstalo sin permiso');
+  b.restore();
+});
+
+test('al confirmar, desinstala de verdad con el comando de VS Code', async () => {
+  const b = switchBoard(['workbench.extensions.uninstallExtension']);
+  await b.refresh();
+  warnAnswer = 'Uninstall';
+  await b.uninstall('c:buildView');
+  assert.deepStrictEqual(b.ejecutados, [['workbench.extensions.uninstallExtension', 'acme.build']]);
+  warnAnswer = null;
+  b.restore();
+});
+
+test('una desinstalada no se queda en gris esperando volver', async () => {
+  // Apagada y desinstalada no son lo mismo: de la segunda no hay vuelta desde el tablero.
+  const b = switchBoard(['workbench.extensions.uninstallExtension']);
+  await b.refresh();
+  warnAnswer = 'Uninstall';
+  await b.uninstall('c:buildView');
+  b.desactivar('acme.build');                                 // ya no esta en el disco
+  await b.refresh();
+  assert.ok(!b.tiles.some((x) => x.key === 'c:buildView'), 'quedo como si estuviera apagada');
+  assert.deepStrictEqual(b.store.get('viewGroups.removed'), [], 'la marca sobra una vez desinstalada');
+  assert.deepStrictEqual(b.off, []);
+  warnAnswer = null;
+  b.restore();
+});
+
+test('si el comando de desinstalar falla, se lleva a la ficha', async () => {
+  const b = switchBoard(['extension.open']);                  // sin comando de desinstalar
+  await b.refresh();
+  warnAnswer = 'Uninstall';
+  avisos.length = 0;
+  await b.uninstall('c:buildView');
+  assert.ok(b.ejecutados.some(([c]) => c === 'extension.open'), 'no ofrecio salida');
+  assert.ok(b.tiles.some((x) => x.key === 'c:buildView'), 'la dio por desinstalada sin serlo');
+  warnAnswer = null;
+  b.restore();
+});
+
+test('ni los iconos de fabrica ni el propio tablero se desinstalan', async () => {
+  const b = switchBoard(['workbench.extensions.uninstallExtension']);
+  await b.refresh();
+  warnAnswer = 'Uninstall';
+  avisos.length = 0;
+  for (const k of [...NATIVE_KEYS, 'k:chat', 'k:testing', 'c:viewGroups']) await b.uninstall(k);
+  assert.deepStrictEqual(b.ejecutados, []);
+  assert.strictEqual(avisos.length, 0, 'ni siquiera deberia preguntar');
+  warnAnswer = null;
+  b.restore();
 });

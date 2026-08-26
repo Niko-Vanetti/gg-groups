@@ -13,6 +13,7 @@ const STR = {
   showHiddenOn: 'Ver ocultos', showHiddenOff: 'Dejar de ver ocultos', dock: 'Mover a otra barra',
   unhideAll: 'Recuperar todos los ocultos',
   disable: 'Desactivar la extension', enable: 'Activar la extension', forget: 'Quitar del tablero',
+  uninstall: 'Desinstalar la extension',
 };
 
 /** Monta el webview igual que lo monta la extension y devuelve utilidades para toquetearlo. */
@@ -147,14 +148,16 @@ test('UI: clic derecho en un agrupado ofrece sacarlo; en uno suelto no', () => {
   ui.folders()[0].onclick();
   ui.doc.querySelector('.kids .cell').oncontextmenu(ui.ev());
   let rows = [...ui.doc.getElementById('menu').children];
-  assert.deepStrictEqual(rows.map((r) => r.textContent), [STR.renameTile, STR.disable, STR.hide, STR.remove]);
-  rows[3].onclick();
+  assert.deepStrictEqual(rows.map((r) => r.textContent),
+    [STR.renameTile, STR.disable, STR.uninstall, STR.hide, STR.remove]);
+  rows[4].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'ungroup', keys: ['c:a'] });
 
   // Uno suelto tiene menu, pero sin la opcion de sacarlo de ninguna carpeta.
   ui.cells().find((c) => c.dataset.key === 'c:z').oncontextmenu(ui.ev());
   rows = [...ui.doc.getElementById('menu').children];
-  assert.deepStrictEqual(rows.map((r) => r.textContent), [STR.renameTile, STR.disable, STR.hide]);
+  assert.deepStrictEqual(rows.map((r) => r.textContent),
+    [STR.renameTile, STR.disable, STR.uninstall, STR.hide]);
 });
 
 test('UI: clic derecho en la carpeta ofrece ordenar, renombrar y eliminar', () => {
@@ -364,11 +367,12 @@ test('UI: dentro de una carpeta tambien se apilan', () => {
 
 // --- renombrar y ocultar iconos ---
 
-test('UI: el menu de un icono ofrece renombrar, apagar y ocultar', () => {
+test('UI: el menu de un icono ofrece renombrar, apagar, desinstalar y ocultar', () => {
   const ui = mount({ loose: [tile('c:a')] });
   ui.cells()[0].oncontextmenu(ui.ev());
   const rows = [...ui.doc.getElementById('menu').children];
-  assert.deepStrictEqual(rows.map((r) => r.textContent), [STR.renameTile, STR.disable, STR.hide]);
+  assert.deepStrictEqual(rows.map((r) => r.textContent),
+    [STR.renameTile, STR.disable, STR.uninstall, STR.hide]);
   rows[0].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'renameTile', key: 'c:a' });
 });
@@ -409,7 +413,7 @@ test('UI: un icono ya renombrado ofrece volver al nombre original', () => {
   ui.cells()[0].oncontextmenu(ui.ev());
   const rows = [...ui.doc.getElementById('menu').children];
   assert.deepStrictEqual(rows.map((r) => r.textContent),
-    [STR.renameTile, STR.resetName, STR.disable, STR.hide]);
+    [STR.renameTile, STR.resetName, STR.disable, STR.uninstall, STR.hide]);
   rows[1].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'resetName', key: 'c:a' });
 });
@@ -420,8 +424,9 @@ test('UI: un icono oculto se ve atenuado y ofrece mostrarlo', () => {
   assert.ok(c.className.includes('faded'), 'no se distingue de los demas');
   c.oncontextmenu(ui.ev());
   const rows = [...ui.doc.getElementById('menu').children];
-  assert.deepStrictEqual(rows.map((r) => r.textContent), [STR.renameTile, STR.disable, STR.unhide]);
-  rows[2].onclick();
+  assert.deepStrictEqual(rows.map((r) => r.textContent),
+    [STR.renameTile, STR.disable, STR.uninstall, STR.unhide]);
+  rows[3].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'unhide', keys: ['c:a'] });
 });
 
@@ -483,4 +488,19 @@ test('UI: sin nada oculto el boton no lleva numero ni menu', () => {
   const ojo = ui.actions()[2];
   assert.strictEqual(ojo.querySelector('.count'), null);
   assert.ok(!ojo.oncontextmenu);
+});
+
+test('UI: desinstalar es una opcion aparte de apagar', () => {
+  // Se separan a proposito: una es reversible al instante, la otra borra del disco.
+  const ui = mount({ loose: [tile('c:a')] });
+  ui.cells()[0].oncontextmenu(ui.ev());
+  [...ui.doc.getElementById('menu').children][2].onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'uninstall', key: 'c:a' });
+});
+
+test('UI: una apagada no ofrece desinstalar, que ya no esta cargada', () => {
+  const ui = mount({ loose: [tile('c:a', { off: true })] });
+  ui.cells()[0].oncontextmenu(ui.ev());
+  const rows = [...ui.doc.getElementById('menu').children];
+  assert.ok(!rows.some((r) => r.textContent === STR.uninstall));
 });

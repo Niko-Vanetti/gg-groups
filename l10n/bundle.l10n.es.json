@@ -39,5 +39,9 @@
   "Press Disable there. When you reload, it will show greyed out here.": "Pulsa Deshabilitar ahí. Al recargar, aparecerá en gris en el tablero.",
   "Press Enable there. When you reload, it will come back to its place.": "Pulsa Habilitar ahí. Al recargar, volverá a su sitio en el tablero.",
   "Testing": "Pruebas",
-  "Remote Explorer": "Explorador remoto"
+  "Remote Explorer": "Explorador remoto",
+  "Uninstall extension": "Desinstalar la extensión",
+  "Uninstall": "Desinstalar",
+  "Uninstall \"{0}\"? It is deleted from disk: to get it back you have to download it again.": "¿Desinstalar \"{0}\"? Se borra del disco: para recuperarla habría que descargarla otra vez.",
+  "Use the Uninstall button on this page.": "Usa el botón Desinstalar de esta ficha."
 }

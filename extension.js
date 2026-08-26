@@ -12,7 +12,8 @@ const KEY_DOCKED = 'viewGroups.docked';
 const KEY_LOCALE = 'viewGroups.locale';
 // Catalogo de lo que se ha visto alguna vez, para reconocer lo que ya no esta cargado.
 const KEY_SEEN = 'viewGroups.seen';
-const KEY_OFF = 'viewGroups.off';               // solo para limpiar el estado de versiones viejas
+const KEY_OFF = 'viewGroups.off';
+const KEY_REMOVED = 'viewGroups.removed';               // solo para limpiar el estado de versiones viejas
 /**
  * Desactivar una extension NO se puede hacer por codigo: no hay API, y los comandos de
  * `workbench` o no existen o aceptan la llamada y la ignoran sin avisar — resuelven bien
@@ -22,6 +23,12 @@ const KEY_OFF = 'viewGroups.off';               // solo para limpiar el estado d
  * usuario a su ficha, donde el boton si funciona.
  */
 const EXT_PAGE_CMDS = ['extension.open', 'workbench.extensions.search'];
+/**
+ * Desinstalar si se puede por codigo, y es lo unico que hace que una extension deje de
+ * cargarse sin pasar por la interfaz. No es lo mismo que desactivar: borra la extension
+ * del disco, asi que se pide confirmacion antes.
+ */
+const UNINSTALL_CMDS = ['workbench.extensions.uninstallExtension'];
 // VS Code ha ido cambiando el nombre de este comando; se busca por patron en vez de fijarlo.
 const MOVE_RIGHT = /^workbench\.action\.move.*View.*(SecondarySideBar|AuxiliaryBar)$/i;
 // Las dos barras laterales, y solo esas: lo que vive en el panel de abajo no es un icono de barra.
@@ -430,10 +437,19 @@ class Board {
   async refresh() {
     const live = await keepClickable(discover(this.ctx));
 
+    // Lo que se acaba de desinstalar sigue cargado hasta recargar la ventana: no se
+    // vuelve a anotar, o su icono se quedaria en gris como si solo estuviera apagado.
+    const present = new Set(vscode.extensions.all.map((e) => String(e.id).toLowerCase()));
+    const removed = this.list(KEY_REMOVED);
+    const quedan = removed.filter((id) => present.has(id.toLowerCase()));
+    if (quedan.length !== removed.length) await this.ctx.globalState.update(KEY_REMOVED, quedan);
+    const ignorar = new Set(quedan.map((id) => id.toLowerCase()));
+
     // El catalogo se pone al dia con lo que hay cargado ahora.
     const catalogo = new Map(this.seen.map((o) => [o.key, o]));
     for (const x of live) {
       if (x.ext === 'vscode') continue;                       // los de fabrica no se apagan
+      if (ignorar.has(String(x.ext).toLowerCase())) continue;
       catalogo.set(x.key, {
         ext: x.ext, key: x.key, cmd: x.cmd, label: x.label, owner: x.owner,
         iconPath: x.icon ? x.icon.uri.fsPath : null, mask: !!(x.icon && x.icon.mask),
@@ -483,6 +499,39 @@ class Board {
     const entry = this.off.find((o) => o.key === key);
     if (!entry) return;
     await this.openExtensionPage(entry.ext, t('Press Enable there. When you reload, it will come back to its place.'));
+  }
+
+  /**
+   * Desinstala la extension. A diferencia de desactivar, esto si se puede hacer por
+   * codigo — y por eso mismo se confirma antes: lo que se borra hay que volver a bajarlo.
+   */
+  async uninstall(key) {
+    const tile = this.tiles.find((x) => x.key === key);
+    if (!tile || tile.native || !tile.ext || tile.ext === 'vscode') return;
+    const yes = t('Uninstall');
+    const pick = await vscode.window.showWarningMessage(
+      t('Uninstall "{0}"? It is deleted from disk: to get it back you have to download it again.', this.nameOf(tile)),
+      { modal: true }, yes
+    );
+    if (pick !== yes) return;
+    let ok = false;
+    for (const cmd of UNINSTALL_CMDS) {
+      try {
+        await vscode.commands.executeCommand(cmd, tile.ext);
+        ok = true;
+        break;
+      } catch (e) {
+        console.error('[GG Groups] no se pudo desinstalar con', cmd, e);
+      }
+    }
+    if (!ok) {
+      await this.openExtensionPage(tile.ext, t('Use the Uninstall button on this page.'));
+      return;
+    }
+    // Desinstalada no es apagada: su icono no debe quedarse en gris esperando volver.
+    await this.ctx.globalState.update(KEY_SEEN, this.seen.filter((o) => o.ext !== tile.ext));
+    await this.ctx.globalState.update(KEY_REMOVED, [...this.list(KEY_REMOVED), tile.ext]);
+    await this.refresh();
   }
 
   /** Deja de recordar una extension apagada: su icono desaparece del tablero. */
@@ -876,6 +925,8 @@ class Board {
         return this.enable(m.key);
       case 'forget':
         return this.forget(m.key);
+      case 'uninstall':
+        return this.uninstall(m.key);
       case 'unhideAll':
         await this.ctx.globalState.update(KEY_HIDDEN, []);
         return this.render();
@@ -912,7 +963,7 @@ class Board {
       sort: t('Sort A-Z'), rename: t('Rename folder'), renameTile: t('Rename icon'),
       resetName: t('Use original name'), remove: t('Remove from folder'), del: t('Delete folder'),
       disable: t('Turn extension off...'), enable: t('Turn extension on...'),
-      forget: t('Remove from the board'),
+      uninstall: t('Uninstall extension'), forget: t('Remove from the board'),
       hide: t('Hide icon'), unhide: t('Show icon'), showHiddenOn: t('Show hidden icons'),
       showHiddenOff: t('Stop showing hidden icons'), unhideAll: t('Show all hidden icons'),
       dock: t('Move the board to the right bar'),
