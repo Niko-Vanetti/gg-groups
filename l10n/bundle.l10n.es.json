@@ -44,7 +44,12 @@
   "Uninstall": "Desinstalar",
   "Uninstall \"{0}\"? It is deleted from disk: to get it back you have to download it again.": "¿Desinstalar \"{0}\"? Se borra del disco: para recuperarla habría que descargarla otra vez.",
   "Use the Uninstall button on this page.": "Usa el botón Desinstalar de esta ficha.",
-  "Copy the command that turns it off": "Copiar la orden que la desactiva",
-  "Copy the command that turns it on": "Copiar la orden que la activa",
-  "Copied. Close VS Code, run it in a terminal, and open it again:": "Copiada. Cierra VS Code, ejecútala en una terminal y vuelve a abrirlo:"
+  "Copied. Close VS Code, run it in a terminal, and open it again:": "Copiada. Cierra VS Code, ejecútala en una terminal y vuelve a abrirlo:",
+  "Turn off now (closes and reopens VS Code)": "Desactivar ahora (cierra y reabre VS Code)",
+  "Turn on now (closes and reopens VS Code)": "Activar ahora (cierra y reabre VS Code)",
+  "Copy the command instead": "Copiar la orden y hacerlo a mano",
+  "Close and apply": "Cerrar y aplicar",
+  "Turn off \"{0}\"? VS Code closes, applies it and opens again.": "¿Desactivar \"{0}\"? VS Code se cierra, lo aplica y se vuelve a abrir.",
+  "Turn on \"{0}\"? VS Code closes, applies it and opens again.": "¿Activar \"{0}\"? VS Code se cierra, lo aplica y se vuelve a abrir.",
+  "Python is needed for this. Copying the command instead.": "Para esto hace falta Python. Se copia la orden para hacerlo a mano."
 }

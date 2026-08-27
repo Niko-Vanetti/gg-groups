@@ -1,6 +1,6 @@
 const vscode = require('vscode');
 const fs = require('fs');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 
 const KEY_FOLDERS = 'viewGroups.folders';
 const KEY_ORDER = 'viewGroups.order';
@@ -161,6 +161,49 @@ function readConfig(token) {
     }
   } catch { /* sin API de ajustes */ }
   return null;
+}
+
+/** El primer intérprete de Python que responda, o null si no hay ninguno. */
+async function findPython() {
+  const candidatos = process.platform === 'win32'
+    ? ['python', 'py', 'python3']
+    : ['python3', 'python'];
+  for (const exe of candidatos) {
+    const args = exe === 'py' ? ['-3', '--version'] : ['--version'];
+    const vale = await new Promise((res) => {
+      try {
+        execFile(exe, args, { timeout: 5000, windowsHide: true }, (err) => res(!err));
+      } catch {
+        res(false);
+      }
+    });
+    if (vale) return exe;
+  }
+  return null;
+}
+
+/**
+ * La orden que aplica el cambio despues de que VS Code se cierre. Se devuelve en vez de
+ * ejecutarse para poder comprobarla en las pruebas sin cerrarle el editor a nadie.
+ */
+function restartCommand(plan) {
+  const { dir, python, action, id, codeExe } = plan;
+  const script = `${dir}/gg-extensions.py`;
+  if (process.platform === 'win32') {
+    return {
+      exe: 'powershell.exe',
+      args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', `${dir}/gg-apply.ps1`,
+             '-Python', python, '-Script', script, '-Action', action, '-Id', id, '-CodeExe', codeExe],
+    };
+  }
+  // En macOS y Linux no hay ventana que abrir: el mismo bucle de espera, en sh.
+  const espera = process.platform === 'darwin'
+    ? 'while pgrep -x "Code Helper" >/dev/null 2>&1 || pgrep -x Electron >/dev/null 2>&1; do sleep 1; done'
+    : 'while pgrep -f "/code" >/dev/null 2>&1; do sleep 1; done';
+  return {
+    exe: 'sh',
+    args: ['-c', `${espera}; sleep 1; "${python}" "${script}" ${action} ${id}; "${codeExe}" || true`],
+  };
 }
 
 const literal = (s) => (s === 'true' ? true : s === 'false' ? false : s.replace(/^['"]|['"]$/g, ''));
@@ -532,6 +575,52 @@ class Board {
     await this.ctx.globalState.update(KEY_SEEN, this.seen.filter((o) => o.ext !== tile.ext));
     await this.ctx.globalState.update(KEY_REMOVED, [...this.list(KEY_REMOVED), tile.ext]);
     await this.refresh();
+  }
+
+  /**
+   * Desactiva o reactiva de verdad, sin pasos manuales: se lanza un proceso aparte que
+   * espera a que VS Code se cierre, escribe el cambio y lo vuelve a abrir. El rodeo es
+   * inevitable — VS Code vuelca su base de estado al salir, asi que escribir con el
+   * editor abierto no serviria de nada.
+   */
+  async applyWithRestart(key, action) {
+    const tile = this.tiles.find((x) => x.key === key) || this.off.find((o) => o.key === key);
+    if (!tile || !tile.ext || tile.ext === 'vscode' || tile.native) return;
+
+    const python = await findPython();
+    if (!python) {
+      // Sin Python no hay quien escriba en la base: se cae a copiar la orden.
+      vscode.window.showWarningMessage(t('Python is needed for this. Copying the command instead.'));
+      return this.copyScript(key, action);
+    }
+
+    const nombre = this.nameOf(tile);
+    const si = t('Close and apply');
+    const pick = await vscode.window.showWarningMessage(
+      action === 'disable'
+        ? t('Turn off "{0}"? VS Code closes, applies it and opens again.', nombre)
+        : t('Turn on "{0}"? VS Code closes, applies it and opens again.', nombre),
+      { modal: true }, si
+    );
+    if (pick !== si) return;
+
+    const plan = restartCommand({
+      dir: vscode.Uri.joinPath(this.ctx.extensionUri, 'scripts').fsPath.replace(/\\/g, '/'),
+      python,
+      action,
+      id: tile.ext,
+      codeExe: process.execPath,
+    });
+    try {
+      const hijo = spawn(plan.exe, plan.args, { detached: true, stdio: 'ignore', windowsHide: false });
+      hijo.unref();
+    } catch (e) {
+      vscode.window.showErrorMessage(t('Could not open "{0}": {1}', nombre, (e && e.message) || String(e)));
+      return;
+    }
+    // Se le da un instante al proceso para quedar en marcha antes de cerrar el editor.
+    await new Promise((r) => setTimeout(r, 600));
+    await vscode.commands.executeCommand('workbench.action.quit');
   }
 
   /**
@@ -948,6 +1037,8 @@ class Board {
         return this.uninstall(m.key);
       case 'script':
         return this.copyScript(m.key, typeof m.action === 'string' ? m.action : 'disable');
+      case 'apply':
+        return this.applyWithRestart(m.key, m.action === 'enable' ? 'enable' : 'disable');
       case 'unhideAll':
         await this.ctx.globalState.update(KEY_HIDDEN, []);
         return this.render();
@@ -985,8 +1076,10 @@ class Board {
       resetName: t('Use original name'), remove: t('Remove from folder'), del: t('Delete folder'),
       disable: t('Turn extension off...'), enable: t('Turn extension on...'),
       uninstall: t('Uninstall extension'), forget: t('Remove from the board'),
-      scriptOff: t('Copy the command that turns it off'),
-      scriptOn: t('Copy the command that turns it on'),
+      applyOff: t('Turn off now (closes and reopens VS Code)'),
+      applyOn: t('Turn on now (closes and reopens VS Code)'),
+      scriptOff: t('Copy the command instead'),
+      scriptOn: t('Copy the command instead'),
       hide: t('Hide icon'), unhide: t('Show icon'), showHiddenOn: t('Show hidden icons'),
       showHiddenOff: t('Stop showing hidden icons'), unhideAll: t('Show all hidden icons'),
       dock: t('Move the board to the right bar'),
@@ -1064,4 +1157,5 @@ module.exports = {
   activate, deactivate() {},
   Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale,
   NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
+  restartCommand, findPython,
 };

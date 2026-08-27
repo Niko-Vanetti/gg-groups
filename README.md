@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-152%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-158%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -67,7 +67,7 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 | **Drag to a folder header** | Moves it in |
 | **Drag to an edge** | Places it between two icons |
 | **Drag to empty space** | Takes it out of its folder |
-| **Right-click an icon** | Rename · turn off · copy the script command · uninstall · hide |
+| **Right-click an icon** | Rename · turn off now · turn off · copy the command · uninstall · hide |
 | **Right-click a folder** | Sort A–Z · rename · delete |
 | **＋ A↓ ◉ ⇥ ↻** | New folder · sort all · show hidden · move to right bar · refresh |
 
@@ -95,8 +95,15 @@ python scripts/gg-extensions.py enable --all
 anything written while it runs is lost. The script refuses to continue if it finds VS Code
 running, and takes a timestamped backup before every write.
 
-From the board, right-click an icon and pick *Copy the command that turns it off*: the exact
-line lands on your clipboard with the right identifier already filled in.
+From the board you don't have to type any of that: right-click an icon and pick **Turn off
+now**. GG Groups launches a separate process that waits for VS Code to close, applies the
+change and opens it again. You just confirm.
+
+Reloading the window is not a shortcut: that restarts the window and the extension host, but
+not VS Code's main process, which is the one holding that database in memory. It has to close
+fully, which is why the automatic flow closes and reopens it.
+
+If you'd rather do it by hand, *Copy the command* puts the exact line on your clipboard.
 
 ## Design decisions worth knowing
 
@@ -136,7 +143,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 152 tests, no VS Code needed
+npm test      # 158 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-152%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-158%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -67,7 +67,7 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 | **Arrastrar a la cabecera de una carpeta** | Lo mete dentro |
 | **Arrastrar a un borde** | Lo coloca entre dos iconos |
 | **Arrastrar al vacío** | Lo saca de su carpeta |
-| **Clic derecho en un icono** | Renombrar · apagar · copiar la orden del guion · desinstalar · ocultar |
+| **Clic derecho en un icono** | Renombrar · desactivar ahora · desactivar · copiar la orden · desinstalar · ocultar |
 | **Clic derecho en una carpeta** | Ordenar A–Z · renombrar · eliminar |
 | **＋ A↓ ◉ ⇥ ↻** | Nueva carpeta · ordenar todo · ver ocultos · llevar a la barra derecha · actualizar |
 
@@ -96,8 +96,15 @@ python scripts/gg-extensions.py enable --all
 que lo que se escriba con el editor abierto se pierde. El guion se niega a seguir si lo
 encuentra abierto, y guarda una copia con fecha antes de cada escritura.
 
-Desde el tablero, clic derecho en un icono y *Copiar la orden que la desactiva*: la línea
-exacta, con su identificador ya puesto, va a parar al portapapeles.
+Desde el tablero no hace falta escribir nada: clic derecho en un icono y **Desactivar ahora**.
+GG Groups lanza un proceso aparte que espera a que VS Code se cierre, aplica el cambio y lo
+vuelve a abrir. Tú solo confirmas.
+
+Recargar la ventana no sirve como atajo: eso reinicia la ventana y el host de extensiones,
+pero no el proceso principal de VS Code, que es quien tiene esa base en memoria. Hace falta
+cerrarlo del todo, y por eso el flujo automático lo cierra y lo reabre.
+
+Si prefieres hacerlo a mano, *Copiar la orden* deja la línea exacta en el portapapeles.
 
 ## Decisiones de diseño que conviene saber
 
@@ -141,7 +148,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 152 pruebas, sin necesidad de VS Code
+npm test      # 158 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

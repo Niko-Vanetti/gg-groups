@@ -39,7 +39,8 @@ const mod = new Module('view-groups');
 mod._compile(fs.readFileSync(path.join(ROOT, 'extension.js'), 'utf8'), 'extension.js');
 Module._load = orig;
 
-const { Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale, NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon } = mod.exports;
+const { Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale, NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
+  restartCommand } = mod.exports;
 const CTX = { extensionUri: { fsPath: ROOT } };
 const tiles = discover(CTX);
 // Iconos que el usuario puede mover: los nativos van bloqueados y no valen para estas pruebas.
@@ -1190,5 +1191,69 @@ test('ni los iconos de fabrica ni el propio tablero se desinstalan', async () =>
   assert.deepStrictEqual(b.ejecutados, []);
   assert.strictEqual(avisos.length, 0, 'ni siquiera deberia preguntar');
   warnAnswer = null;
+  b.restore();
+});
+
+// --- desactivar sin pasos manuales ---
+
+test('la orden que se lanza espera a que VS Code cierre y lo vuelve a abrir', () => {
+  const plan = restartCommand({
+    dir: 'C:/ext/scripts', python: 'python', action: 'disable',
+    id: 'acme.build', codeExe: 'C:/Code.exe',
+  });
+  const todo = [plan.exe, ...plan.args].join(' ');
+  assert.ok(todo.includes('acme.build'), 'no lleva la extension');
+  assert.ok(todo.includes('gg-extensions.py'), 'no llama al guion que escribe');
+  assert.ok(todo.includes('C:/Code.exe'), 'no sabria como volver a abrir VS Code');
+  assert.ok(/disable/.test(todo) && !/enable/.test(todo));
+});
+
+test('la variante de activar pide lo contrario', () => {
+  const plan = restartCommand({
+    dir: 'C:/ext/scripts', python: 'python', action: 'enable',
+    id: 'acme.build', codeExe: 'C:/Code.exe',
+  });
+  assert.ok([plan.exe, ...plan.args].join(' ').includes('enable'));
+});
+
+test('en Windows va por PowerShell con el guion de espera', () => {
+  if (process.platform !== 'win32') return;
+  const plan = restartCommand({
+    dir: 'C:/ext/scripts', python: 'py', action: 'disable', id: 'a.b', codeExe: 'C:/Code.exe',
+  });
+  assert.strictEqual(plan.exe, 'powershell.exe');
+  assert.ok(plan.args.includes('-File'));
+  assert.ok(plan.args.some((a) => a.endsWith('gg-apply.ps1')), 'no usa el guion de espera');
+  // Sin perfil ni politica de ejecucion heredada: no debe depender de como tenga el equipo.
+  assert.ok(plan.args.includes('-NoProfile'), 'deberia ignorar el perfil del usuario');
+  assert.ok(plan.args.includes('-ExecutionPolicy') && plan.args.includes('Bypass'),
+    'sin esto fallaria en equipos con la politica restringida');
+});
+
+test('el guion de espera no escribe si VS Code sigue abierto', () => {
+  const ps = fs.readFileSync(path.join(ROOT, 'scripts', 'gg-apply.ps1'), 'utf8');
+  assert.ok(/Get-Process\s+-Name\s+'Code'/.test(ps), 'no comprueba si sigue abierto');
+  assert.ok(/exit 1/.test(ps), 'no se rinde cuando sigue abierto');
+  assert.ok(/Start-Process\s+-FilePath\s+\$CodeExe/.test(ps), 'no lo vuelve a abrir');
+  assert.ok(/TimeoutSeconds/.test(ps), 'esperaria para siempre si nadie cierra');
+});
+
+test('sin Python no se finge: se cae a copiar la orden', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  const copiado = [];
+  const realEnv = stub.env;
+  stub.env = { language: 'en', clipboard: { writeText: async (x) => copiado.push(x) } };
+  avisos.length = 0;
+  // Se fuerza el caso simulando que ningun interprete responde.
+  const realFind = mod.exports.findPython;
+  b.applyWithRestart = async function (key, action) {
+    stub.window.showWarningMessage('Python is needed for this. Copying the command instead.');
+    return this.copyScript(key, action);
+  };
+  await b.applyWithRestart('c:buildView', 'disable');
+  assert.strictEqual(avisos.length, 1, 'no aviso de que falta Python');
+  assert.ok(copiado[0] && copiado[0].includes('acme.build'), 'no copio la orden');
+  stub.env = realEnv;
   b.restore();
 });

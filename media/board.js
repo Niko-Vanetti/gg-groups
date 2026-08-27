@@ -121,11 +121,13 @@
     // El interruptor: los iconos de fabrica y el propio tablero no se apagan.
     if (!t.fixed) {
       if (t.off) {
+        rows.push([S.applyOn, () => post({ type: 'apply', key: t.key, action: 'enable' })]);
         rows.push([S.enable, () => post({ type: 'enable', key: t.key })]);
         rows.push([S.scriptOn, () => post({ type: 'script', key: t.key, action: 'enable' })]);
         rows.push([S.forget, () => post({ type: 'forget', key: t.key })]);
       } else {
         // Desactivar es reversible al instante; desinstalar borra. Van por separado.
+        rows.push([S.applyOff, () => post({ type: 'apply', key: t.key, action: 'disable' })]);
         rows.push([S.disable, () => post({ type: 'disable', key: t.key })]);
         rows.push([S.scriptOff, () => post({ type: 'script', key: t.key, action: 'disable' })]);
         rows.push([S.uninstall, () => post({ type: 'uninstall', key: t.key })]);
