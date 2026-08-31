@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-168%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-170%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -103,6 +103,12 @@ again. One restart for all of them, not one per extension.
 
 Right-click that button to empty the list without applying anything.
 
+A visible window opens and narrates what it does, and **it is the one that reopens VS
+Code**: if you open it yourself too early, the script finds the editor running again and
+writes nothing — writing then would be pointless, since VS Code would overwrite it on exit.
+If that happens the window waits for you to close it instead of giving up. Everything is
+also written to a log that `GG Groups: Check that everything works` reads back to you.
+
 Reloading the window is not a shortcut. *Developer: Reload Window* restarts the window and
 the extension host, but not VS Code's main process — the one holding that database in memory
 and flushing it on exit, which would overwrite anything written before the reload. It has to
@@ -151,7 +157,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 168 tests, no VS Code needed
+npm test      # 170 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

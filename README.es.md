@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-168%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-170%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -104,6 +104,12 @@ de una vez y lo vuelve a abrir. Un solo cierre para todas, no uno por extensión
 
 Un clic derecho sobre ese botón vacía la lista sin aplicar nada.
 
+Se abre una ventana visible que va contando lo que hace, y **es ella quien vuelve a abrir
+VS Code**: si lo abres tú antes de tiempo, el guion se encuentra el editor otra vez en
+marcha y no escribe nada — escribir entonces sería inútil, porque VS Code lo pisaría al
+salir. Si eso pasa, la ventana espera a que lo cierres en vez de rendirse. Todo queda
+además en un registro que `GG Groups: Comprobar que todo funciona` te lee.
+
 Recargar la ventana no vale como atajo. *Developer: Reload Window* reinicia la ventana y el
 host de extensiones, pero no el proceso principal de VS Code, que es justamente quien tiene
 esa base en memoria y la vuelca al salir: lo que se escribiera antes de recargar quedaría
@@ -155,7 +161,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 168 pruebas, sin necesidad de VS Code
+npm test      # 170 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

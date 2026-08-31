@@ -1089,7 +1089,8 @@ test('la comprobacion escribe un informe legible', async () => {
   const lineas = [];
   await b.selfTest({ appendLine: (l) => lineas.push(l) });
   const texto = lineas.join('\n');
-  for (const trozo of ['idioma:', 'baldosas:', 'comandos:', 'apagar extensiones:', 'carpetas:']) {
+  for (const trozo of ['idioma:', 'baldosas:', 'comandos:', 'python:', 'en la lista, sin aplicar:',
+    'ultimo intento de aplicar:', 'carpetas:']) {
     assert.ok(texto.includes(trozo), 'falta la seccion ' + trozo);
   }
   b.restore();
@@ -1275,20 +1276,41 @@ test('una lista de un solo lado no arrastra la otra vacia', () => {
   assert.ok([plan.exe, ...plan.args].join(' ').includes('a.uno'));
 });
 
-test('en Windows va por PowerShell con el guion de espera', () => {
+test('en Windows la ventana se abre de verdad, no en un proceso invisible', () => {
   if (process.platform !== 'win32') return;
   const plan = restartCommand({
     dir: 'C:/ext/scripts', python: 'py', disable: ['a.b'], enable: [], codeExe: 'C:/Code.exe',
   });
-  assert.strictEqual(plan.exe, 'powershell.exe');
-  assert.ok(plan.args.includes('-File'));
+  // Lanzar powershell.exe con detached deja al proceso sin consola: corre invisible y sus
+  // avisos no los ve nadie. Fue exactamente el fallo del primer intento.
+  assert.strictEqual(plan.exe, 'cmd.exe');
+  assert.deepStrictEqual(plan.args.slice(0, 3), ['/c', 'start', 'GG Groups']);
+  assert.ok(plan.args.includes('powershell.exe'));
   assert.ok(plan.args.some((a) => a.endsWith('gg-apply.ps1')), 'no usa el guion de espera');
-  assert.ok(plan.args.includes('-Disable') && plan.args.includes('-Enable'),
-    'el guion espera las dos listas por nombre');
-  // Sin perfil ni politica de ejecucion heredada: no debe depender de como tenga el equipo.
+  // Sin perfil ni politica heredada: no debe depender de como tenga el equipo cada uno.
   assert.ok(plan.args.includes('-NoProfile'), 'deberia ignorar el perfil del usuario');
   assert.ok(plan.args.includes('-ExecutionPolicy') && plan.args.includes('Bypass'),
     'sin esto fallaria en equipos con la politica restringida');
+});
+
+test('no se pasan listas vacias como argumento suelto', () => {
+  if (process.platform !== 'win32') return;
+  const plan = restartCommand({
+    dir: 'C:/ext/scripts', python: 'py', disable: ['a.b'], enable: [], codeExe: 'C:/Code.exe',
+  });
+  // Un "" viajando por cmd se pierde o corre los demas parametros de sitio.
+  assert.ok(plan.args.includes('-Disable'));
+  assert.ok(!plan.args.includes('-Enable'), 'la lista vacia no deberia ni aparecer');
+  assert.ok(!plan.args.includes(''), 'un argumento vacio a traves de cmd desalinea el resto');
+});
+
+test('el proceso de fuera deja registro de lo que hizo', () => {
+  const plan = restartCommand({
+    dir: 'C:/ext/scripts', python: 'py', disable: ['a.b'], enable: [],
+    codeExe: 'C:/Code.exe', log: 'C:/estado/gg-apply.log',
+  });
+  assert.ok([plan.exe, ...plan.args].join(' ').includes('gg-apply.log'),
+    'sin registro, un fallo ahi fuera es invisible desde VS Code');
 });
 
 test('el guion de espera no escribe si VS Code sigue abierto', () => {
@@ -1296,6 +1318,10 @@ test('el guion de espera no escribe si VS Code sigue abierto', () => {
   assert.ok(/Get-Process\s+-Name\s+'Code'/.test(ps), 'no comprueba si sigue abierto');
   assert.ok(/\$Disable/.test(ps) && /\$Enable/.test(ps), 'no acepta las dos listas');
   assert.ok(/exit 1/.test(ps), 'no se rinde cuando sigue abierto');
+  // Si VS Code reaparece mientras espera, vuelve a esperar en vez de rendirse callado.
+  assert.ok(/\$avisado = \$false; continue/.test(ps), 'no reintenta si VS Code vuelve');
+  assert.ok(/--force/.test(ps), 'el guion volveria a comprobar lo ya comprobado y no escribiria');
+  assert.ok(/ReadKey/.test(ps), 'la ventana se cerraria sin que diera tiempo a leer el fallo');
   assert.ok(/Start-Process\s+-FilePath\s+\$CodeExe/.test(ps), 'no lo vuelve a abrir');
   assert.ok(/TimeoutSeconds/.test(ps), 'esperaria para siempre si nadie cierra');
 });

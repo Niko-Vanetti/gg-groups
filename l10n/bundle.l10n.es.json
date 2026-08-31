@@ -49,5 +49,6 @@
   "Empty the list": "Vaciar la lista",
   "Apply {0} changes? VS Code closes, applies them and opens again.": "¿Aplicar {0} cambios? VS Code se cierra, los aplica y se vuelve a abrir.",
   "Could not apply the list: {0}": "No se pudo aplicar la lista: {0}",
-  "Could not open \"{0}\": {1}": "No se pudo abrir \"{0}\": {1}"
+  "Could not open \"{0}\": {1}": "No se pudo abrir \"{0}\": {1}",
+  "A window will open. Do not open VS Code yourself: it opens it for you when it finishes.": "Se abrirá una ventana. No abras VS Code tú: ella lo abre al terminar."
 }

@@ -187,27 +187,33 @@ async function findPython() {
  * La orden que aplica toda la lista de una vez, cuando VS Code ya se haya cerrado. Se
  * devuelve en vez de ejecutarse para poder comprobarla en las pruebas sin cerrarle el
  * editor a nadie.
+ *
+ * En Windows se pasa por `cmd /c start` a proposito. Lanzar powershell.exe directamente
+ * con detached hace que Windows no le de consola ninguna: el proceso corre invisible, y
+ * si algo va mal —por ejemplo, que VS Code vuelva a abrirse antes de tiempo— el aviso no
+ * lo ve nadie y parece que la extension no hizo nada. Con `start` hay ventana de verdad.
  */
 function restartCommand(plan) {
-  const { dir, python, disable, enable, codeExe } = plan;
+  const { dir, python, disable, enable, codeExe, log } = plan;
   const script = `${dir}/gg-extensions.py`;
   const apagar = (disable || []).join(',');
   const encender = (enable || []).join(',');
   if (process.platform === 'win32') {
-    return {
-      exe: 'powershell.exe',
-      args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', `${dir}/gg-apply.ps1`,
-             '-Python', python, '-Script', script,
-             '-Disable', apagar, '-Enable', encender, '-CodeExe', codeExe],
-    };
+    const ps = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', `${dir}/gg-apply.ps1`,
+                '-Python', python, '-Script', script, '-CodeExe', codeExe];
+    // Los parametros vacios se omiten: pasarlos como "" a traves de cmd es pedir problemas.
+    if (apagar) ps.push('-Disable', apagar);
+    if (encender) ps.push('-Enable', encender);
+    if (log) ps.push('-Log', log);
+    return { exe: 'cmd.exe', args: ['/c', 'start', 'GG Groups', 'powershell.exe', ...ps] };
   }
   // En macOS y Linux no hay ventana que abrir: el mismo bucle de espera, en sh.
   const espera = process.platform === 'darwin'
     ? 'while pgrep -x "Code Helper" >/dev/null 2>&1 || pgrep -x Electron >/dev/null 2>&1; do sleep 1; done'
     : 'while pgrep -f "/code" >/dev/null 2>&1; do sleep 1; done';
   const pasos = [];
-  if (apagar) pasos.push(`"${python}" "${script}" disable ${(disable || []).join(' ')}`);
-  if (encender) pasos.push(`"${python}" "${script}" enable ${(enable || []).join(' ')}`);
+  if (apagar) pasos.push(`"${python}" "${script}" disable --force ${(disable || []).join(' ')}`);
+  if (encender) pasos.push(`"${python}" "${script}" enable --force ${(enable || []).join(' ')}`);
   return {
     exe: 'sh',
     args: ['-c', `${espera}; sleep 1; ${pasos.join('; ')}; "${codeExe}" || true`],
@@ -646,14 +652,19 @@ class Board {
     const si = t('Close and apply');
     const pick = await vscode.window.showWarningMessage(
       t('Apply {0} changes? VS Code closes, applies them and opens again.', cola.length),
-      { modal: true, detail: this.queueDetail(cola) }, si
+      { modal: true, detail: this.queueDetail(cola) + '\n\n' + t('A window will open. Do not open VS Code yourself: it opens it for you when it finishes.') },
+      si
     );
     if (pick !== si) return;
 
     const plan = restartCommand({
       dir: vscode.Uri.joinPath(this.ctx.extensionUri, 'scripts').fsPath.replace(/\\/g, '/'),
       python, disable: apagar, enable: encender, codeExe: process.execPath,
+      log: this.logPath(),
     });
+    try {
+      await vscode.workspace.fs.createDirectory(this.ctx.globalStorageUri);
+    } catch { /* si ya existe, mejor */ }
     try {
       const hijo = spawn(plan.exe, plan.args, { detached: true, stdio: 'ignore', windowsHide: false });
       hijo.unref();
@@ -666,6 +677,24 @@ class Board {
     // Un instante para que el proceso quede en marcha antes de cerrar el editor.
     await new Promise((r) => setTimeout(r, 600));
     await vscode.commands.executeCommand('workbench.action.quit');
+  }
+
+  /** Donde el proceso de fuera deja constancia de lo que hizo. */
+  logPath() {
+    return vscode.Uri.joinPath(this.ctx.globalStorageUri, 'gg-apply.log').fsPath.replace(/\\/g, '/');
+  }
+
+  /**
+   * Cuenta como fue el ultimo intento. Sin esto, si algo falla ahi fuera, desde VS Code
+   * no hay manera de enterarse: fue justo lo que paso la primera vez que se probo.
+   */
+  async lastRunReport() {
+    try {
+      const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(this.logPath()));
+      return Buffer.from(bytes).toString('utf8').trim().split(/\r?\n/).slice(-12).join('\n');
+    } catch {
+      return null;
+    }
   }
 
   /** El resumen que se lee en la confirmacion, para no aplicar nada a ciegas. */
@@ -734,8 +763,12 @@ class Board {
 
     // 3. Capacidades: se informan, no son fallos.
     say('');
-    say('apagar extensiones: se hace desde su ficha (VS Code no lo expone a las extensiones)');
+    say('python: ' + (await findPython() || 'no encontrado (habria que aplicar la lista a mano)'));
     say('apagadas ahora mismo: ' + (this.off.map((o) => o.label).join(', ') || 'ninguna'));
+    say('en la lista, sin aplicar: ' + (this.queue.map((o) => o.ext).join(', ') || 'nada'));
+    // El intento anterior ocurre fuera de VS Code: sin esto, un fallo alli no se ve desde aqui.
+    const ultimo = await this.lastRunReport();
+    say('ultimo intento de aplicar: ' + (ultimo ? '\n' + ultimo : 'ninguno todavia'));
     say('mover a la barra derecha: ' + ((await this.moveCommands()).filter((c) => MOVE_RIGHT.test(c))[0]
       || 'no disponible (hay que arrastrar el icono)'));
 
