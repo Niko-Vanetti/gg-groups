@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-158%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-168%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -67,9 +67,9 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 | **Drag to a folder header** | Moves it in |
 | **Drag to an edge** | Places it between two icons |
 | **Drag to empty space** | Takes it out of its folder |
-| **Right-click an icon** | Rename · turn off now · turn off · copy the command · uninstall · hide |
+| **Right-click an icon** | Rename · turn off (onto the list) · uninstall · hide |
 | **Right-click a folder** | Sort A–Z · rename · delete |
-| **＋ A↓ ◉ ⇥ ↻** | New folder · sort all · show hidden · move to right bar · refresh |
+| **＋ A↓ ◉ ▶ ⇥ ↻** | New folder · sort all · show hidden · apply the list · move to right bar · refresh |
 
 ### Keep it always visible
 
@@ -95,15 +95,21 @@ python scripts/gg-extensions.py enable --all
 anything written while it runs is lost. The script refuses to continue if it finds VS Code
 running, and takes a timestamped backup before every write.
 
-From the board you don't have to type any of that: right-click an icon and pick **Turn off
-now**. GG Groups launches a separate process that waits for VS Code to close, applies the
-change and opens it again. You just confirm.
+From the board you don't have to type any of that. Right-click an icon → **Turn extension
+off**: that doesn't switch it off yet, it puts it on a list. Mark as many as you want — they
+show a dashed outline — then press **▶ Apply the list**. You confirm, and GG Groups launches
+a separate process that waits for VS Code to close, writes every change at once and opens it
+again. One restart for all of them, not one per extension.
 
-Reloading the window is not a shortcut: that restarts the window and the extension host, but
-not VS Code's main process, which is the one holding that database in memory. It has to close
-fully, which is why the automatic flow closes and reopens it.
+Right-click that button to empty the list without applying anything.
 
-If you'd rather do it by hand, *Copy the command* puts the exact line on your clipboard.
+Reloading the window is not a shortcut. *Developer: Reload Window* restarts the window and
+the extension host, but not VS Code's main process — the one holding that database in memory
+and flushing it on exit, which would overwrite anything written before the reload. It has to
+close fully.
+
+Without Python, GG Groups doesn't pretend: it says so and leaves the whole command on your
+clipboard to run by hand.
 
 ## Design decisions worth knowing
 
@@ -122,12 +128,14 @@ a letter. Monochrome art is masked so it takes your theme's color instead of ren
 **It follows your OS language, not VS Code's.** English and Spanish included. On Windows the
 extension host reports VS Code's locale rather than the system's, so it asks Windows directly.
 
-**Disabling is VS Code's job, not ours.** No API lets an extension disable another, and the
-workbench commands either don't exist or accept the call and quietly ignore it. So GG Groups
-takes you to the extension's page, where the button works, and reports state from fact rather
-than intent: an icon greys out when VS Code genuinely stops loading it — however you turned
-it off. Uninstalling *is* scriptable, so that one happens in place, behind a confirmation
-that says plainly it deletes the extension from disk.
+**Disabling is marked, then applied in one batch.** No API lets an extension disable another,
+and the workbench commands either don't exist or accept the call and quietly ignore it. The
+only thing that works is writing to the state database with VS Code closed — and since closing
+it is expensive, it doesn't happen once per extension: you mark them all and one restart
+applies everything. Until then nothing has changed, and the board keeps telling the truth: an
+icon greys out when VS Code genuinely stops loading it, however you turned it off.
+Uninstalling *is* scriptable, so that one happens in place, behind a confirmation that says
+plainly it deletes the extension from disk.
 
 **Your setup is yours.** Folders, order, names, hidden and disabled icons live in VS Code's
 extension storage. Nothing is written to your settings, and nothing leaves your machine.
@@ -143,7 +151,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 158 tests, no VS Code needed
+npm test      # 168 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

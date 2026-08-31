@@ -120,18 +120,12 @@
     if (t.renamed) rows.push([S.resetName, () => post({ type: 'resetName', key: t.key })]);
     // El interruptor: los iconos de fabrica y el propio tablero no se apagan.
     if (!t.fixed) {
-      if (t.off) {
-        rows.push([S.applyOn, () => post({ type: 'apply', key: t.key, action: 'enable' })]);
-        rows.push([S.enable, () => post({ type: 'enable', key: t.key })]);
-        rows.push([S.scriptOn, () => post({ type: 'script', key: t.key, action: 'enable' })]);
-        rows.push([S.forget, () => post({ type: 'forget', key: t.key })]);
-      } else {
-        // Desactivar es reversible al instante; desinstalar borra. Van por separado.
-        rows.push([S.applyOff, () => post({ type: 'apply', key: t.key, action: 'disable' })]);
-        rows.push([S.disable, () => post({ type: 'disable', key: t.key })]);
-        rows.push([S.scriptOff, () => post({ type: 'script', key: t.key, action: 'disable' })]);
-        rows.push([S.uninstall, () => post({ type: 'uninstall', key: t.key })]);
-      }
+      // Un solo interruptor: marca o desmarca. Nada se aplica hasta pulsar el boton de la lista.
+      rows.push([t.queued ? S.unqueue : (t.off ? S.enable : S.disable),
+                 () => post({ type: 'queue', key: t.key })]);
+      // Desactivar es reversible; desinstalar borra del disco. Van por separado.
+      if (t.off) rows.push([S.forget, () => post({ type: 'forget', key: t.key })]);
+      else rows.push([S.uninstall, () => post({ type: 'uninstall', key: t.key })]);
     }
     rows.push(t.hidden
       ? [S.unhide, () => post({ type: 'unhide', keys: [t.key] })]
@@ -144,9 +138,10 @@
   function cell(t, inside, list, i, locked) {
     const nextKey = list && list[i + 1] ? (list[i + 1].key || (list[i + 1].tiles || [])[0].key) : null;
     const n = el('div', 'cell' + (active === t.key ? ' active' : '') +
-      (inside ? ' inside' : '') + (t.hidden ? ' faded' : '') + (t.off ? ' off' : ''));
+      (inside ? ' inside' : '') + (t.hidden ? ' faded' : '') + (t.off ? ' off' : '') +
+      (t.queued ? ' queued' : ''));
     n.title = t.label + (t.owner && t.owner !== t.label ? ' — ' + t.owner : '') +
-      (t.off ? ' · ' + S.enable : '');
+      (t.queued ? ' · ' + (t.queued === 'disable' ? S.disable : S.enable) : '');
     n.dataset.key = t.key;
     n.appendChild(art(t));
 
@@ -287,6 +282,15 @@
     if (ocultos) {
       el('span', 'count', ojo).textContent = ocultos;
       ojo.oncontextmenu = (e) => menu(e, [[S.unhideAll, () => post({ type: 'unhideAll' })]]);
+    }
+    // El boton de aplicar solo aparece cuando hay algo marcado: si no, no hay nada que hacer.
+    const marcadas = state.queueCount || 0;
+    if (marcadas) {
+      const aplicar = btn('▶', S.applyQueue + ' (' + marcadas + ')',
+        () => post({ type: 'applyQueue' }), true);
+      aplicar.classList.add('apply');
+      el('span', 'count', aplicar).textContent = marcadas;
+      aplicar.oncontextmenu = (e) => menu(e, [[S.clearQueue, () => post({ type: 'clearQueue' })]]);
     }
     btn('⇥', S.dock, () => post({ type: 'dock' }));
     btn('↻', S.refresh, () => post({ type: 'refresh' }));

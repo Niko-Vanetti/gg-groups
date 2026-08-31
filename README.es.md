@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-158%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-168%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -67,9 +67,9 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 | **Arrastrar a la cabecera de una carpeta** | Lo mete dentro |
 | **Arrastrar a un borde** | Lo coloca entre dos iconos |
 | **Arrastrar al vacío** | Lo saca de su carpeta |
-| **Clic derecho en un icono** | Renombrar · desactivar ahora · desactivar · copiar la orden · desinstalar · ocultar |
+| **Clic derecho en un icono** | Renombrar · desactivar (a la lista) · desinstalar · ocultar |
 | **Clic derecho en una carpeta** | Ordenar A–Z · renombrar · eliminar |
-| **＋ A↓ ◉ ⇥ ↻** | Nueva carpeta · ordenar todo · ver ocultos · llevar a la barra derecha · actualizar |
+| **＋ A↓ ◉ ▶ ⇥ ↻** | Nueva carpeta · ordenar todo · ver ocultos · aplicar la lista · llevar a la barra derecha · actualizar |
 
 ### Para tenerlo siempre visible
 
@@ -96,15 +96,21 @@ python scripts/gg-extensions.py enable --all
 que lo que se escriba con el editor abierto se pierde. El guion se niega a seguir si lo
 encuentra abierto, y guarda una copia con fecha antes de cada escritura.
 
-Desde el tablero no hace falta escribir nada: clic derecho en un icono y **Desactivar ahora**.
-GG Groups lanza un proceso aparte que espera a que VS Code se cierre, aplica el cambio y lo
-vuelve a abrir. Tú solo confirmas.
+Desde el tablero no hace falta escribir nada. Clic derecho en un icono → **Desactivar la
+extensión**: eso no la apaga todavía, la mete en una lista. Marcas todas las que quieras —
+se ven con un recuadro punteado — y entonces pulsas **▶ Aplicar la lista**. Confirmas, y GG
+Groups lanza un proceso aparte que espera a que VS Code se cierre, escribe todos los cambios
+de una vez y lo vuelve a abrir. Un solo cierre para todas, no uno por extensión.
 
-Recargar la ventana no sirve como atajo: eso reinicia la ventana y el host de extensiones,
-pero no el proceso principal de VS Code, que es quien tiene esa base en memoria. Hace falta
-cerrarlo del todo, y por eso el flujo automático lo cierra y lo reabre.
+Un clic derecho sobre ese botón vacía la lista sin aplicar nada.
 
-Si prefieres hacerlo a mano, *Copiar la orden* deja la línea exacta en el portapapeles.
+Recargar la ventana no vale como atajo. *Developer: Reload Window* reinicia la ventana y el
+host de extensiones, pero no el proceso principal de VS Code, que es justamente quien tiene
+esa base en memoria y la vuelca al salir: lo que se escribiera antes de recargar quedaría
+pisado. Por eso hay que cerrarlo del todo.
+
+Si no tienes Python, GG Groups no finge: avisa y deja la orden completa en el portapapeles
+para ejecutarla a mano.
 
 ## Decisiones de diseño que conviene saber
 
@@ -126,13 +132,14 @@ pintan con el color de tu tema en lugar de salir en negro.
 host de extensiones informa del idioma de VS Code y no del sistema, así que se le pregunta
 directamente a Windows.
 
-**Desactivar es cosa de VS Code, no nuestra.** Ninguna API deja que una extensión desactive
-a otra, y los comandos del workbench o no existen o aceptan la llamada y la ignoran en
-silencio. Así que GG Groups te lleva a la ficha de la extensión, donde el botón sí funciona,
-e informa del estado por el hecho y no por la intención: un icono se pone en gris cuando VS
-Code deja de cargarlo de verdad, lo hayas apagado desde donde lo hayas apagado. Desinstalar
-sí se puede por código, así que eso ocurre en el sitio, tras una confirmación que dice claro
-que borra la extensión del disco.
+**Desactivar se marca y se aplica en bloque.** Ninguna API deja que una extensión desactive a
+otra, y los comandos del workbench o no existen o aceptan la llamada y la ignoran en silencio.
+Lo único que funciona es escribir en la base de estado con VS Code cerrado — y como cerrarlo
+es caro, no se hace una vez por extensión: marcas todas y se aplican en un solo cierre. Hasta
+entonces no ha cambiado nada, y el tablero sigue diciendo la verdad: un icono se pone en gris
+cuando VS Code deja de cargarlo de verdad, lo hayas apagado desde donde lo hayas apagado.
+Desinstalar sí se puede por código, así que eso ocurre en el sitio, tras una confirmación que
+dice claro que borra la extensión del disco.
 
 **Tu configuración es tuya.** Carpetas, orden, nombres, ocultos y apagados viven en el
 almacenamiento de la extensión. No se escribe nada en tus ajustes, y nada sale de tu equipo.
@@ -148,7 +155,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 158 pruebas, sin necesidad de VS Code
+npm test      # 168 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

@@ -14,8 +14,8 @@ const STR = {
   unhideAll: 'Recuperar todos los ocultos',
   disable: 'Desactivar la extension', enable: 'Activar la extension', forget: 'Quitar del tablero',
   uninstall: 'Desinstalar la extension',
-  scriptOff: 'Copiar la orden', scriptOn: 'Copiar la orden',
-  applyOff: 'Desactivar ahora', applyOn: 'Activar ahora',
+  unqueue: 'Quitar de la lista',
+  applyQueue: 'Aplicar la lista', clearQueue: 'Vaciar la lista',
 };
 
 /** Monta el webview igual que lo monta la extension y devuelve utilidades para toquetearlo. */
@@ -151,15 +151,15 @@ test('UI: clic derecho en un agrupado ofrece sacarlo; en uno suelto no', () => {
   ui.doc.querySelector('.kids .cell').oncontextmenu(ui.ev());
   let rows = [...ui.doc.getElementById('menu').children];
   assert.deepStrictEqual(rows.map((r) => r.textContent),
-    [STR.renameTile, STR.applyOff, STR.disable, STR.scriptOff, STR.uninstall, STR.hide, STR.remove]);
-  rows[6].onclick();
+    [STR.renameTile, STR.disable, STR.uninstall, STR.hide, STR.remove]);
+  rows[4].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'ungroup', keys: ['c:a'] });
 
   // Uno suelto tiene menu, pero sin la opcion de sacarlo de ninguna carpeta.
   ui.cells().find((c) => c.dataset.key === 'c:z').oncontextmenu(ui.ev());
   rows = [...ui.doc.getElementById('menu').children];
   assert.deepStrictEqual(rows.map((r) => r.textContent),
-    [STR.renameTile, STR.applyOff, STR.disable, STR.scriptOff, STR.uninstall, STR.hide]);
+    [STR.renameTile, STR.disable, STR.uninstall, STR.hide]);
 });
 
 test('UI: clic derecho en la carpeta ofrece ordenar, renombrar y eliminar', () => {
@@ -374,7 +374,7 @@ test('UI: el menu de un icono ofrece renombrar, apagar, desinstalar y ocultar', 
   ui.cells()[0].oncontextmenu(ui.ev());
   const rows = [...ui.doc.getElementById('menu').children];
   assert.deepStrictEqual(rows.map((r) => r.textContent),
-    [STR.renameTile, STR.applyOff, STR.disable, STR.scriptOff, STR.uninstall, STR.hide]);
+    [STR.renameTile, STR.disable, STR.uninstall, STR.hide]);
   rows[0].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'renameTile', key: 'c:a' });
 });
@@ -382,24 +382,24 @@ test('UI: el menu de un icono ofrece renombrar, apagar, desinstalar y ocultar', 
 test('UI: apagar una extension desde su menu', () => {
   const ui = mount({ loose: [tile('c:a')] });
   ui.cells()[0].oncontextmenu(ui.ev());
-  [...ui.doc.getElementById('menu').children][2].onclick();
-  assert.deepStrictEqual(ui.last(), { type: 'disable', key: 'c:a' });
+  [...ui.doc.getElementById('menu').children][1].onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'queue', key: 'c:a' });
 });
 
 test('UI: una apagada se ve en gris y ofrece encenderla o quitarla', () => {
   const ui = mount({ loose: [tile('c:a', { off: true })] });
   const c = ui.cells()[0];
   assert.ok(c.className.includes('off'), 'no se distingue de una encendida');
-  assert.ok(c.title.includes(STR.enable), 'el tooltip no dice como encenderla');
+  assert.ok(!c.title.includes(STR.disable), 'una apagada no se vuelve a apagar');
   c.onclick();
   assert.deepStrictEqual(ui.last(), { type: 'open', key: 'c:a' });
   c.oncontextmenu(ui.ev());
   const rows = [...ui.doc.getElementById('menu').children];
-  assert.deepStrictEqual(rows.map((r) => r.textContent), [STR.renameTile, STR.applyOn, STR.enable, STR.scriptOn, STR.forget, STR.hide]);
-  rows[2].onclick();
-  assert.deepStrictEqual(ui.last(), { type: 'enable', key: 'c:a' });
+  assert.deepStrictEqual(rows.map((r) => r.textContent), [STR.renameTile, STR.enable, STR.forget, STR.hide]);
+  rows[1].onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'queue', key: 'c:a' });
   c.oncontextmenu(ui.ev());
-  [...ui.doc.getElementById('menu').children][4].onclick();
+  [...ui.doc.getElementById('menu').children][2].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'forget', key: 'c:a' });
 });
 
@@ -415,7 +415,7 @@ test('UI: un icono ya renombrado ofrece volver al nombre original', () => {
   ui.cells()[0].oncontextmenu(ui.ev());
   const rows = [...ui.doc.getElementById('menu').children];
   assert.deepStrictEqual(rows.map((r) => r.textContent),
-    [STR.renameTile, STR.resetName, STR.applyOff, STR.disable, STR.scriptOff, STR.uninstall, STR.hide]);
+    [STR.renameTile, STR.resetName, STR.disable, STR.uninstall, STR.hide]);
   rows[1].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'resetName', key: 'c:a' });
 });
@@ -427,8 +427,8 @@ test('UI: un icono oculto se ve atenuado y ofrece mostrarlo', () => {
   c.oncontextmenu(ui.ev());
   const rows = [...ui.doc.getElementById('menu').children];
   assert.deepStrictEqual(rows.map((r) => r.textContent),
-    [STR.renameTile, STR.applyOff, STR.disable, STR.scriptOff, STR.uninstall, STR.unhide]);
-  rows[5].onclick();
+    [STR.renameTile, STR.disable, STR.uninstall, STR.unhide]);
+  rows[3].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'unhide', keys: ['c:a'] });
 });
 
@@ -496,7 +496,7 @@ test('UI: desinstalar es una opcion aparte de apagar', () => {
   // Se separan a proposito: una es reversible al instante, la otra borra del disco.
   const ui = mount({ loose: [tile('c:a')] });
   ui.cells()[0].oncontextmenu(ui.ev());
-  [...ui.doc.getElementById('menu').children][4].onclick();
+  [...ui.doc.getElementById('menu').children][2].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'uninstall', key: 'c:a' });
 });
 
@@ -507,26 +507,48 @@ test('UI: una apagada no ofrece desinstalar, que ya no esta cargada', () => {
   assert.ok(!rows.some((r) => r.textContent === STR.uninstall));
 });
 
-test('UI: el menu ofrece copiar la orden del guion, segun el estado', () => {
+test('UI: el interruptor es uno solo, y solo marca', () => {
   const encendida = mount({ loose: [tile('c:a')] });
   encendida.cells()[0].oncontextmenu(encendida.ev());
-  [...encendida.doc.getElementById('menu').children][3].onclick();
-  assert.deepStrictEqual(encendida.last(), { type: 'script', key: 'c:a', action: 'disable' });
-
-  const apagada = mount({ loose: [tile('c:b', { off: true })] });
-  apagada.cells()[0].oncontextmenu(apagada.ev());
-  [...apagada.doc.getElementById('menu').children][3].onclick();
-  assert.deepStrictEqual(apagada.last(), { type: 'script', key: 'c:b', action: 'enable' });
+  const rows = [...encendida.doc.getElementById('menu').children].map((r) => r.textContent);
+  assert.deepStrictEqual(rows.filter((x) => /list|Desactivar|Activar/i.test(x)), [STR.disable],
+    'varias formas de apagar la misma extension confunden mas de lo que ayudan');
 });
 
-test('UI: la primera opcion es la automatica, que no pide pasos manuales', () => {
-  const encendida = mount({ loose: [tile('c:a')] });
-  encendida.cells()[0].oncontextmenu(encendida.ev());
-  [...encendida.doc.getElementById('menu').children][1].onclick();
-  assert.deepStrictEqual(encendida.last(), { type: 'apply', key: 'c:a', action: 'disable' });
+test('UI: una ya marcada ofrece sacarla de la lista', () => {
+  const ui = mount({ loose: [tile('c:a', { queued: 'disable' })] });
+  ui.cells()[0].oncontextmenu(ui.ev());
+  assert.strictEqual([...ui.doc.getElementById('menu').children][1].textContent, STR.unqueue);
+});
 
-  const apagada = mount({ loose: [tile('c:b', { off: true })] });
-  apagada.cells()[0].oncontextmenu(apagada.ev());
-  [...apagada.doc.getElementById('menu').children][1].onclick();
-  assert.deepStrictEqual(apagada.last(), { type: 'apply', key: 'c:b', action: 'enable' });
+test('UI: la marcada se distingue a simple vista', () => {
+  const ui = mount({ loose: [tile('c:a', { queued: 'disable' }), tile('c:b')] });
+  assert.ok(ui.cells()[0].className.includes('queued'));
+  assert.ok(!ui.cells()[1].className.includes('queued'), 'se marcaron todas');
+});
+
+test('UI: sin nada marcado no aparece el boton de aplicar', () => {
+  const ui = mount({ loose: [tile('c:a')] });
+  const botones = [...ui.doc.getElementById('actions').children].map((b) => b.title);
+  assert.ok(!botones.some((x) => x.startsWith(STR.applyQueue)), 'ofreceria aplicar una lista vacia');
+});
+
+test('UI: con la lista llena, el boton la aplica y lleva su numero', () => {
+  const ui = mount({ loose: [tile('c:a', { queued: 'disable' })], queueCount: 2 });
+  const boton = [...ui.doc.getElementById('actions').children]
+    .find((b) => b.title.startsWith(STR.applyQueue));
+  assert.ok(boton, 'no hay forma de aplicar lo marcado');
+  assert.ok(boton.title.includes('2'), 'no dice cuantos cambios va a aplicar');
+  assert.strictEqual(boton.querySelector('.count').textContent, '2');
+  boton.onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'applyQueue' });
+});
+
+test('UI: el boton de aplicar ofrece vaciar la lista sin aplicarla', () => {
+  const ui = mount({ loose: [tile('c:a', { queued: 'disable' })], queueCount: 1 });
+  const boton = [...ui.doc.getElementById('actions').children]
+    .find((b) => b.title.startsWith(STR.applyQueue));
+  boton.oncontextmenu(ui.ev());
+  [...ui.doc.getElementById('menu').children][0].onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'clearQueue' });
 });

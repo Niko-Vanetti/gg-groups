@@ -262,3 +262,16 @@ body {
   #brand { justify-content: center; padding: 8px 0 7px; }
   #brand span { display: none; }
 }
+
+/* Marcada para el proximo cierre: se ve que va a cambiar, pero todavia no ha cambiado. */
+.cell.queued::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border: 1px dashed var(--vscode-focusBorder, #2E8FE6);
+  border-radius: 5px;
+  pointer-events: none;
+}
+.cell.action.apply {
+  color: var(--vscode-focusBorder, #2E8FE6);
+}

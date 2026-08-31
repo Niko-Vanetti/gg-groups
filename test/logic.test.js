@@ -808,25 +808,72 @@ function switchBoard(comandos, initial) {
   return b;
 }
 
-test('pulsar apagar lleva a la ficha de la extension, que es donde se puede', async () => {
-  // VS Code no expone desactivar extensiones a las extensiones: fingirlo era el fallo.
+test('marcar una extension la mete en la lista, con su identificador', async () => {
   const b = switchBoard(['extension.open']);
   await b.refresh();
-  const tile = b.tiles.find((x) => x.key === 'c:buildView');
-  await b.disable(tile.key);
-  assert.deepStrictEqual(b.ejecutados, [['extension.open', tile.ext]]);
-  assert.strictEqual(infos.length > 0, true, 'deberia explicar que hacer alli');
+  await b.toggleQueued('c:buildView');
+  assert.deepStrictEqual(b.queue, [{ key: 'c:buildView', ext: 'acme.build', action: 'disable' }]);
   b.restore();
 });
 
-test('no se marca nada en gris solo por haberlo intentado', async () => {
+test('volver a marcarla la saca de la lista', async () => {
   const b = switchBoard(['extension.open']);
   await b.refresh();
-  await b.disable('c:buildView');
+  await b.toggleQueued('c:buildView');
+  await b.toggleQueued('c:buildView');
+  assert.deepStrictEqual(b.queue, []);
+  b.restore();
+});
+
+test('marcar no apaga nada todavia: hasta aplicar, sigue cargandose', async () => {
+  // El fallo de las versiones 0.23-0.26 era justo este: pintar en gris por intencion.
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  await b.toggleQueued('c:buildView');
   await b.refresh();
   const tile = b.tiles.find((x) => x.key === 'c:buildView');
   assert.ok(!tile.off, 'seguia cargandose y aun asi se pintaba apagada');
   assert.deepStrictEqual(b.off, []);
+  assert.deepStrictEqual(b.ejecutados, [], 'no deberia ejecutar nada al marcar');
+  b.restore();
+});
+
+test('una apagada se marca para encender, no para apagar', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.build');
+  await b.refresh();
+  await b.toggleQueued('c:buildView');
+  assert.strictEqual(b.queue[0].action, 'enable');
+  b.restore();
+});
+
+test('vaciar la lista la deja limpia sin tocar ninguna extension', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  await b.toggleQueued('c:buildView');
+  await b.toggleQueued('c:notesView');
+  await b.clearQueue();
+  assert.deepStrictEqual(b.queue, []);
+  assert.deepStrictEqual(b.ejecutados, []);
+  b.restore();
+});
+
+test('la lista sobrevive a un refresco: se marca ahora y se aplica luego', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  await b.toggleQueued('c:buildView');
+  await b.refresh();
+  assert.strictEqual(b.queue.length, 1);
+  assert.strictEqual(b.last().queueCount, 1, 'el boton no sabria que hay algo pendiente');
+  b.restore();
+});
+
+test('una entrada corrompida no llega a la orden que se ejecuta', async () => {
+  const b = switchBoard(['extension.open'],
+    { 'viewGroups.queue': ['basura', { key: 1 }, { key: 'a', ext: 'b', action: 'boom' }] });
+  await b.refresh();
+  assert.deepStrictEqual(b.queue, []);
   b.restore();
 });
 
@@ -866,14 +913,15 @@ test('al volver a cargarse recupera su sitio y deja de estar en gris', async () 
   b.restore();
 });
 
-test('pulsar una apagada lleva a su ficha para encenderla', async () => {
+test('pulsar una apagada la marca para encenderla', async () => {
   const b = switchBoard(['extension.open']);
   await b.refresh();
   b.desactivar('acme.build');
   await b.refresh();
   b.ejecutados.length = 0;
   await b.open('c:buildView');
-  assert.deepStrictEqual(b.ejecutados, [['extension.open', 'acme.build']]);
+  assert.strictEqual(b.queue[0].action, 'enable');
+  assert.deepStrictEqual(b.ejecutados, [], 'no deberia intentar abrir el panel de una apagada');
   b.restore();
 });
 
@@ -888,11 +936,11 @@ test('se puede quitar del tablero una apagada que ya no interesa', async () => {
   b.restore();
 });
 
-test('ni los iconos de fabrica ni el propio tablero se pueden apagar', async () => {
+test('ni los iconos de fabrica ni el propio tablero entran en la lista', async () => {
   const b = switchBoard(['extension.open']);
   await b.refresh();
-  for (const k of [...NATIVE_KEYS, 'k:chat', 'c:viewGroups']) await b.disable(k);
-  assert.deepStrictEqual(b.ejecutados, []);
+  for (const k of [...NATIVE_KEYS, 'k:chat', 'c:viewGroups']) await b.toggleQueued(k);
+  assert.deepStrictEqual(b.queue, [], 'apagar el propio tablero lo dejaria sin forma de volver');
   b.restore();
 });
 
@@ -926,11 +974,11 @@ test('el webview recibe la marca de apagada', async () => {
   b.restore();
 });
 
-test('si no se puede abrir la ficha, no se rompe nada', async () => {
+test('marcar una baldosa que ya no existe no rompe nada', async () => {
   const b = switchBoard([]);                                  // ningun comando responde
   await b.refresh();
-  await b.disable('c:buildView');
-  assert.deepStrictEqual(b.off, []);
+  await b.toggleQueued('c:noExiste');
+  assert.deepStrictEqual(b.queue, []);
   b.restore();
 });
 
@@ -1063,12 +1111,13 @@ test('una apagada baja al final de la lista', async () => {
 });
 
 test('entre apagadas mandan las letras, no el orden manual', async () => {
-  const b = switchBoard(['workbench.extensions.disableExtension']);
+  const b = switchBoard(['extension.open']);
   await b.refresh();
   const sueltas = b.looseTiles().filter((x) => !x.native).slice(0, 3).map((x) => x.key);
-  // Se colocan a mano en orden inverso y luego se apagan todas.
+  // Se colocan a mano en orden inverso y luego VS Code deja de cargarlas.
   await b.onMessage({ type: 'move', keys: [sueltas[2]], before: sueltas[0] });
-  for (const k of sueltas) await b.disable(k);
+  for (const k of sueltas) b.desactivar(b.tiles.find((x) => x.key === k).ext);
+  await b.refresh();
   const apagadas = b.looseTiles().filter((x) => x.off);
   const nombres = apagadas.map((x) => b.nameOf(x));
   assert.deepStrictEqual(nombres, [...nombres].sort((x, y) => x.localeCompare(y)));
@@ -1196,34 +1245,46 @@ test('ni los iconos de fabrica ni el propio tablero se desinstalan', async () =>
 
 // --- desactivar sin pasos manuales ---
 
-test('la orden que se lanza espera a que VS Code cierre y lo vuelve a abrir', () => {
+test('la orden que se lanza lleva la lista entera, y reabre VS Code', () => {
   const plan = restartCommand({
-    dir: 'C:/ext/scripts', python: 'python', action: 'disable',
-    id: 'acme.build', codeExe: 'C:/Code.exe',
+    dir: 'C:/ext/scripts', python: 'python',
+    disable: ['acme.build', 'acme.notes'], enable: ['acme.tasks'], codeExe: 'C:/Code.exe',
   });
   const todo = [plan.exe, ...plan.args].join(' ');
-  assert.ok(todo.includes('acme.build'), 'no lleva la extension');
+  for (const id of ['acme.build', 'acme.notes', 'acme.tasks']) {
+    assert.ok(todo.includes(id), 'se quedo fuera de la orden: ' + id);
+  }
   assert.ok(todo.includes('gg-extensions.py'), 'no llama al guion que escribe');
   assert.ok(todo.includes('C:/Code.exe'), 'no sabria como volver a abrir VS Code');
-  assert.ok(/disable/.test(todo) && !/enable/.test(todo));
 });
 
-test('la variante de activar pide lo contrario', () => {
+test('apagar y encender viajan por separado, no mezclados', () => {
   const plan = restartCommand({
-    dir: 'C:/ext/scripts', python: 'python', action: 'enable',
-    id: 'acme.build', codeExe: 'C:/Code.exe',
+    dir: 'C:/ext/scripts', python: 'python',
+    disable: ['a.uno'], enable: ['b.dos'], codeExe: 'C:/Code.exe',
   });
-  assert.ok([plan.exe, ...plan.args].join(' ').includes('enable'));
+  const todo = [plan.exe, ...plan.args].join(' ');
+  // Si se cruzaran, se apagaria lo que el usuario pidio encender.
+  assert.ok(!/disable\s+\S*b\.dos/.test(todo) && !/enable\s+\S*a\.uno/.test(todo));
+});
+
+test('una lista de un solo lado no arrastra la otra vacia', () => {
+  const plan = restartCommand({
+    dir: 'C:/ext/scripts', python: 'python', disable: ['a.uno'], enable: [], codeExe: 'C:/Code.exe',
+  });
+  assert.ok([plan.exe, ...plan.args].join(' ').includes('a.uno'));
 });
 
 test('en Windows va por PowerShell con el guion de espera', () => {
   if (process.platform !== 'win32') return;
   const plan = restartCommand({
-    dir: 'C:/ext/scripts', python: 'py', action: 'disable', id: 'a.b', codeExe: 'C:/Code.exe',
+    dir: 'C:/ext/scripts', python: 'py', disable: ['a.b'], enable: [], codeExe: 'C:/Code.exe',
   });
   assert.strictEqual(plan.exe, 'powershell.exe');
   assert.ok(plan.args.includes('-File'));
   assert.ok(plan.args.some((a) => a.endsWith('gg-apply.ps1')), 'no usa el guion de espera');
+  assert.ok(plan.args.includes('-Disable') && plan.args.includes('-Enable'),
+    'el guion espera las dos listas por nombre');
   // Sin perfil ni politica de ejecucion heredada: no debe depender de como tenga el equipo.
   assert.ok(plan.args.includes('-NoProfile'), 'deberia ignorar el perfil del usuario');
   assert.ok(plan.args.includes('-ExecutionPolicy') && plan.args.includes('Bypass'),
@@ -1233,27 +1294,25 @@ test('en Windows va por PowerShell con el guion de espera', () => {
 test('el guion de espera no escribe si VS Code sigue abierto', () => {
   const ps = fs.readFileSync(path.join(ROOT, 'scripts', 'gg-apply.ps1'), 'utf8');
   assert.ok(/Get-Process\s+-Name\s+'Code'/.test(ps), 'no comprueba si sigue abierto');
+  assert.ok(/\$Disable/.test(ps) && /\$Enable/.test(ps), 'no acepta las dos listas');
   assert.ok(/exit 1/.test(ps), 'no se rinde cuando sigue abierto');
   assert.ok(/Start-Process\s+-FilePath\s+\$CodeExe/.test(ps), 'no lo vuelve a abrir');
   assert.ok(/TimeoutSeconds/.test(ps), 'esperaria para siempre si nadie cierra');
 });
 
-test('sin Python no se finge: se cae a copiar la orden', async () => {
+test('sin Python no se finge: se cae a copiar la orden de toda la lista', async () => {
   const b = switchBoard(['extension.open']);
   await b.refresh();
+  await b.toggleQueued('c:buildView');
+  await b.toggleQueued('c:notesView');
   const copiado = [];
   const realEnv = stub.env;
   stub.env = { language: 'en', clipboard: { writeText: async (x) => copiado.push(x) } };
-  avisos.length = 0;
-  // Se fuerza el caso simulando que ningun interprete responde.
-  const realFind = mod.exports.findPython;
-  b.applyWithRestart = async function (key, action) {
-    stub.window.showWarningMessage('Python is needed for this. Copying the command instead.');
-    return this.copyScript(key, action);
-  };
-  await b.applyWithRestart('c:buildView', 'disable');
-  assert.strictEqual(avisos.length, 1, 'no aviso de que falta Python');
-  assert.ok(copiado[0] && copiado[0].includes('acme.build'), 'no copio la orden');
+  await b.copyScript();
+  assert.ok(copiado[0], 'no copio nada');
+  assert.ok(copiado[0].includes('acme.build') && copiado[0].includes('acme.notes'),
+    'la orden copiada dejaria fuera parte de la lista');
+  assert.ok(copiado[0].includes('disable'));
   stub.env = realEnv;
   b.restore();
 });

@@ -13,6 +13,7 @@ const KEY_LOCALE = 'viewGroups.locale';
 // Catalogo de lo que se ha visto alguna vez, para reconocer lo que ya no esta cargado.
 const KEY_SEEN = 'viewGroups.seen';
 const KEY_OFF = 'viewGroups.off';
+const KEY_QUEUE = 'viewGroups.queue';                   // lo marcado, a la espera de aplicarse
 const KEY_REMOVED = 'viewGroups.removed';               // solo para limpiar el estado de versiones viejas
 /**
  * Desactivar una extension NO se puede hacer por codigo: no hay API, y los comandos de
@@ -183,26 +184,33 @@ async function findPython() {
 }
 
 /**
- * La orden que aplica el cambio despues de que VS Code se cierre. Se devuelve en vez de
- * ejecutarse para poder comprobarla en las pruebas sin cerrarle el editor a nadie.
+ * La orden que aplica toda la lista de una vez, cuando VS Code ya se haya cerrado. Se
+ * devuelve en vez de ejecutarse para poder comprobarla en las pruebas sin cerrarle el
+ * editor a nadie.
  */
 function restartCommand(plan) {
-  const { dir, python, action, id, codeExe } = plan;
+  const { dir, python, disable, enable, codeExe } = plan;
   const script = `${dir}/gg-extensions.py`;
+  const apagar = (disable || []).join(',');
+  const encender = (enable || []).join(',');
   if (process.platform === 'win32') {
     return {
       exe: 'powershell.exe',
       args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', `${dir}/gg-apply.ps1`,
-             '-Python', python, '-Script', script, '-Action', action, '-Id', id, '-CodeExe', codeExe],
+             '-Python', python, '-Script', script,
+             '-Disable', apagar, '-Enable', encender, '-CodeExe', codeExe],
     };
   }
   // En macOS y Linux no hay ventana que abrir: el mismo bucle de espera, en sh.
   const espera = process.platform === 'darwin'
     ? 'while pgrep -x "Code Helper" >/dev/null 2>&1 || pgrep -x Electron >/dev/null 2>&1; do sleep 1; done'
     : 'while pgrep -f "/code" >/dev/null 2>&1; do sleep 1; done';
+  const pasos = [];
+  if (apagar) pasos.push(`"${python}" "${script}" disable ${(disable || []).join(' ')}`);
+  if (encender) pasos.push(`"${python}" "${script}" enable ${(enable || []).join(' ')}`);
   return {
     exe: 'sh',
-    args: ['-c', `${espera}; sleep 1; "${python}" "${script}" ${action} ${id}; "${codeExe}" || true`],
+    args: ['-c', `${espera}; sleep 1; ${pasos.join('; ')}; "${codeExe}" || true`],
   };
 }
 
@@ -530,20 +538,6 @@ class Board {
     if (motivo) vscode.window.showInformationMessage(motivo);
   }
 
-  /** Apagar: se abre su ficha para que el usuario pulse Deshabilitar. */
-  async disable(key) {
-    const tile = this.tiles.find((x) => x.key === key);
-    if (!tile || tile.off || tile.native || !tile.ext || tile.ext === 'vscode') return;
-    await this.openExtensionPage(tile.ext, t('Press Disable there. When you reload, it will show greyed out here.'));
-  }
-
-  /** Encender: lo mismo, con el boton de Habilitar. */
-  async enable(key) {
-    const entry = this.off.find((o) => o.key === key);
-    if (!entry) return;
-    await this.openExtensionPage(entry.ext, t('Press Enable there. When you reload, it will come back to its place.'));
-  }
-
   /**
    * Desinstala la extension. A diferencia de desactivar, esto si se puede hacer por
    * codigo — y por eso mismo se confirma antes: lo que se borra hay que volver a bajarlo.
@@ -578,68 +572,111 @@ class Board {
   }
 
   /**
-   * Desactiva o reactiva de verdad, sin pasos manuales: se lanza un proceso aparte que
-   * espera a que VS Code se cierre, escribe el cambio y lo vuelve a abrir. El rodeo es
-   * inevitable — VS Code vuelca su base de estado al salir, asi que escribir con el
-   * editor abierto no serviria de nada.
+   * Respaldo para cuando no hay Python: deja en el portapapeles la orden que aplica la
+   * lista, para ejecutarla a mano con VS Code cerrado.
    */
-  async applyWithRestart(key, action) {
-    const tile = this.tiles.find((x) => x.key === key) || this.off.find((o) => o.key === key);
-    if (!tile || !tile.ext || tile.ext === 'vscode' || tile.native) return;
-
-    const python = await findPython();
-    if (!python) {
-      // Sin Python no hay quien escriba en la base: se cae a copiar la orden.
-      vscode.window.showWarningMessage(t('Python is needed for this. Copying the command instead.'));
-      return this.copyScript(key, action);
-    }
-
-    const nombre = this.nameOf(tile);
-    const si = t('Close and apply');
-    const pick = await vscode.window.showWarningMessage(
-      action === 'disable'
-        ? t('Turn off "{0}"? VS Code closes, applies it and opens again.', nombre)
-        : t('Turn on "{0}"? VS Code closes, applies it and opens again.', nombre),
-      { modal: true }, si
-    );
-    if (pick !== si) return;
-
-    const plan = restartCommand({
-      dir: vscode.Uri.joinPath(this.ctx.extensionUri, 'scripts').fsPath.replace(/\\/g, '/'),
-      python,
-      action,
-      id: tile.ext,
-      codeExe: process.execPath,
-    });
-    try {
-      const hijo = spawn(plan.exe, plan.args, { detached: true, stdio: 'ignore', windowsHide: false });
-      hijo.unref();
-    } catch (e) {
-      vscode.window.showErrorMessage(t('Could not open "{0}": {1}', nombre, (e && e.message) || String(e)));
-      return;
-    }
-    // Se le da un instante al proceso para quedar en marcha antes de cerrar el editor.
-    await new Promise((r) => setTimeout(r, 600));
-    await vscode.commands.executeCommand('workbench.action.quit');
-  }
-
-  /**
-   * Copia al portapapeles la orden del guion que desactiva esta extension de verdad.
-   * Se hace asi, y no ejecutandolo, porque el guion escribe en la base de estado de VS
-   * Code y eso solo vale con el editor cerrado: lo que se escribiera ahora lo sobreescribiria
-   * el propio VS Code al salir.
-   */
-  async copyScript(key, accion) {
-    const tile = this.tiles.find((x) => x.key === key) || this.off.find((o) => o.key === key);
-    if (!tile || !tile.ext || tile.ext === 'vscode') return;
+  async copyScript() {
+    const cola = this.queue;
+    if (!cola.length) return;
     const guion = vscode.Uri.joinPath(this.ctx.extensionUri, 'scripts', 'gg-extensions.py').fsPath;
-    const orden = `python "${guion}" ${accion} ${tile.ext}`;
+    const linea = (accion) => {
+      const ids = cola.filter((o) => o.action === accion).map((o) => o.ext);
+      return ids.length ? `python "${guion}" ${accion} ${ids.join(' ')}` : null;
+    };
+    const orden = [linea('disable'), linea('enable')].filter(Boolean).join('\n');
     try {
       await vscode.env.clipboard.writeText(orden);
     } catch { /* sin portapapeles, al menos se ve en el aviso */ }
     vscode.window.showInformationMessage(t('Copied. Close VS Code, run it in a terminal, and open it again:'), {
       modal: false, detail: orden,
     });
+  }
+
+  /**
+   * Lo marcado y todavia sin aplicar. Se guarda con el identificador dentro porque una
+   * baldosa puede desaparecer entre marcarla y aplicar, y aun asi el cambio debe llegar.
+   */
+  get queue() {
+    const raw = this.ctx.globalState.get(KEY_QUEUE, []);
+    return Array.isArray(raw)
+      ? raw.filter((o) => o && typeof o.key === 'string' && typeof o.ext === 'string'
+                       && (o.action === 'disable' || o.action === 'enable'))
+      : [];
+  }
+
+  /** Marca o desmarca una baldosa. El cambio no toca nada todavia: solo entra en la lista. */
+  async toggleQueued(key) {
+    const cola = this.queue;
+    const fuera = cola.filter((o) => o.key !== key);
+    if (fuera.length !== cola.length) {
+      await this.ctx.globalState.update(KEY_QUEUE, fuera);
+      return this.render();
+    }
+    const tile = this.tiles.find((x) => x.key === key);
+    if (!tile || tile.native || !tile.ext || tile.ext === 'vscode') return;
+    // Lo que ahora esta apagado se marca para encender, y al reves.
+    await this.ctx.globalState.update(KEY_QUEUE,
+      [...cola, { key, ext: tile.ext, action: tile.off ? 'enable' : 'disable' }]);
+    this.render();
+  }
+
+  async clearQueue() {
+    await this.ctx.globalState.update(KEY_QUEUE, []);
+    this.render();
+  }
+
+  /**
+   * Aplica toda la lista de una vez. Un solo cierre para todos los cambios, en vez de uno
+   * por extension: se lanza un proceso aparte que espera a que VS Code se cierre, escribe
+   * y lo vuelve a abrir. Recargar la ventana no valdria — el proceso principal de VS Code
+   * sigue vivo con esa base en memoria y la vuelca al salir, pisando lo que se escriba.
+   */
+  async applyQueue() {
+    const cola = this.queue;
+    if (!cola.length) return;
+
+    const python = await findPython();
+    if (!python) {
+      vscode.window.showWarningMessage(t('Python is needed for this. Copying the command instead.'));
+      return this.copyScript();
+    }
+
+    const apagar = cola.filter((o) => o.action === 'disable').map((o) => o.ext);
+    const encender = cola.filter((o) => o.action === 'enable').map((o) => o.ext);
+    const si = t('Close and apply');
+    const pick = await vscode.window.showWarningMessage(
+      t('Apply {0} changes? VS Code closes, applies them and opens again.', cola.length),
+      { modal: true, detail: this.queueDetail(cola) }, si
+    );
+    if (pick !== si) return;
+
+    const plan = restartCommand({
+      dir: vscode.Uri.joinPath(this.ctx.extensionUri, 'scripts').fsPath.replace(/\\/g, '/'),
+      python, disable: apagar, enable: encender, codeExe: process.execPath,
+    });
+    try {
+      const hijo = spawn(plan.exe, plan.args, { detached: true, stdio: 'ignore', windowsHide: false });
+      hijo.unref();
+    } catch (e) {
+      vscode.window.showErrorMessage(t('Could not apply the list: {0}', (e && e.message) || String(e)));
+      return;
+    }
+    // La lista se vacia ya: al volver, esos cambios estaran hechos.
+    await this.ctx.globalState.update(KEY_QUEUE, []);
+    // Un instante para que el proceso quede en marcha antes de cerrar el editor.
+    await new Promise((r) => setTimeout(r, 600));
+    await vscode.commands.executeCommand('workbench.action.quit');
+  }
+
+  /** El resumen que se lee en la confirmacion, para no aplicar nada a ciegas. */
+  queueDetail(cola) {
+    const nombre = (o) => {
+      const tile = this.tiles.find((x) => x.key === o.key);
+      return tile ? this.nameOf(tile) : o.ext;
+    };
+    return cola
+      .map((o) => (o.action === 'disable' ? '- ' : '+ ') + nombre(o))
+      .join('\n');
   }
 
   /** Deja de recordar una extension apagada: su icono desaparece del tablero. */
@@ -850,6 +887,7 @@ class Board {
     const byKey = new Map(this.visible().map((x) => [x.key, x]));
     const hidden = this.hidden;
     const names = this.names;
+    const marcadas = new Map(this.queue.map((o) => [o.key, o.action]));
     const pack = (x) => ({
       key: x.key, label: this.nameOf(x), owner: x.owner,
       icon: x.icon ? String(w.asWebviewUri(x.icon.uri)) : null,
@@ -858,11 +896,13 @@ class Board {
       fixed: !!x.native || x.ext === 'vscode',
       hidden: hidden.has(x.key),
       renamed: typeof names[x.key] === 'string',
+      queued: marcadas.get(x.key) || null,
     });
     w.postMessage({
       type: 'state',
       showHidden: this.showHidden,
       hiddenCount: hidden.size,
+      queueCount: this.queue.length,
       folders: folders.map((f) => ({
         name: f.name,
         locked: !!f.locked,
@@ -878,7 +918,8 @@ class Board {
   async open(key) {
     const tile = this.tiles.find((x) => x.key === key);
     if (!tile) return;
-    if (tile.off) return this.enable(key);          // apagada: pulsarla la vuelve a encender
+    // Apagada: pulsarla la marca para volver a encenderla en el proximo cierre.
+    if (tile.off) return this.toggleQueued(key);
     let timer;
     try {
       await Promise.race([
@@ -1027,18 +1068,16 @@ class Board {
         return this.setHidden(m.keys, true);
       case 'unhide':
         return this.setHidden(m.keys, false);
-      case 'disable':
-        return this.disable(m.key);
-      case 'enable':
-        return this.enable(m.key);
+      case 'queue':
+        return this.toggleQueued(m.key);
+      case 'applyQueue':
+        return this.applyQueue();
+      case 'clearQueue':
+        return this.clearQueue();
       case 'forget':
         return this.forget(m.key);
       case 'uninstall':
         return this.uninstall(m.key);
-      case 'script':
-        return this.copyScript(m.key, typeof m.action === 'string' ? m.action : 'disable');
-      case 'apply':
-        return this.applyWithRestart(m.key, m.action === 'enable' ? 'enable' : 'disable');
       case 'unhideAll':
         await this.ctx.globalState.update(KEY_HIDDEN, []);
         return this.render();
@@ -1074,12 +1113,11 @@ class Board {
       newFolder: t('New folder'), refresh: t('Refresh'), sortAll: t('Sort everything A-Z'),
       sort: t('Sort A-Z'), rename: t('Rename folder'), renameTile: t('Rename icon'),
       resetName: t('Use original name'), remove: t('Remove from folder'), del: t('Delete folder'),
-      disable: t('Turn extension off...'), enable: t('Turn extension on...'),
+      disable: t('Turn extension off'), enable: t('Turn extension on'),
+      unqueue: t('Take it off the list'),
       uninstall: t('Uninstall extension'), forget: t('Remove from the board'),
-      applyOff: t('Turn off now (closes and reopens VS Code)'),
-      applyOn: t('Turn on now (closes and reopens VS Code)'),
-      scriptOff: t('Copy the command instead'),
-      scriptOn: t('Copy the command instead'),
+      applyQueue: t('Apply the list (closes and reopens VS Code)'),
+      clearQueue: t('Empty the list'),
       hide: t('Hide icon'), unhide: t('Show icon'), showHiddenOn: t('Show hidden icons'),
       showHiddenOff: t('Stop showing hidden icons'), unhideAll: t('Show all hidden icons'),
       dock: t('Move the board to the right bar'),
