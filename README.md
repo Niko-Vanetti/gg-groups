@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-186%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-192%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -69,6 +69,7 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 | **Drag to an edge** | Places it between two icons |
 | **Drag to empty space** | Takes it out of its folder |
 | **Alt+click an icon** | Adds or removes it from the selection |
+| **Alt Alt · Escape** | Drops the whole selection |
 | **Alt+click a stack** | Picks every icon under it at once |
 | **Drag a picked one** | Takes every picked icon along |
 | **Right-click an icon** | Rename · turn off · uninstall · hide |
@@ -79,7 +80,11 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 
 **Alt+click** on icons adds them to the selection. With several picked, dragging one takes
 them all, and the bottom buttons act on the whole group: **pause** turns them off, **play**
-turns them on, the **trash** uninstalls them. A normal click drops the selection.
+turns them on, the **trash** uninstalls them.
+
+To drop the selection: a normal click, **two quick taps of Alt**, or **Escape**. Simply
+releasing the key deliberately doesn't clear it — if it did, you would have to hold Alt down
+to press the buttons, which is exactly what you do after picking.
 
 **Pause** and **play** are the apply button: they list what will happen, close VS Code, apply
 it and open it again. One restart no matter how many you picked. Cancel and nothing happens.
@@ -175,7 +180,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 186 tests, no VS Code needed
+npm test      # 192 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

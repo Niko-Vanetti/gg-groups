@@ -1165,7 +1165,7 @@ class Board {
       disableSel: t('Turn the selected ones off'), enableSel: t('Turn the selected ones on'),
       mixedPick: t('Some are on and some are off: pick only one kind'),
       uninstallSel: t('Uninstall the selected ones'),
-      hint: t('Drag one icon onto another to group them. Alt+click to pick several.'),
+      hint: t('Drag one icon onto another to group them. Alt+click picks several; tap Alt twice to drop them.'),
     };
     return `<!DOCTYPE html><html><head>
 <meta charset="utf-8">

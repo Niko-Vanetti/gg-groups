@@ -60,6 +60,9 @@ function mount(state) {
     folders: () => [...window.document.querySelectorAll('#items .cell.folder')],
     actions: () => [...window.document.querySelectorAll('#actions .cell')],
     board: () => window.__board,
+    keyup: (key) => window.dispatchEvent(new window.KeyboardEvent('keyup', { key })),
+    // El doble toque se mide con el reloj: para probar el caso lento hay que moverlo.
+    avanza: (ms) => { const real = window.Date.now(); window.Date.now = () => real + ms; },
     ev: () => ({ preventDefault() {}, stopPropagation() {}, clientX: 10, clientY: 10, dataTransfer: { setData() {} } }),
     // Arrastra el nodo `from` y lo suelta sobre `to`.
     dragTo(from, to) {
@@ -675,4 +678,56 @@ test('UI: solo una regla dibuja sobre el icono, para que no se pisen', () => {
   const dibujan = css.match(/\.cell[^{,]*::after/g) || [];
   assert.deepStrictEqual(dibujan, ['.cell.sel::after'],
     'dos reglas sobre el mismo ::after se mezclan sin avisar: ' + dibujan.join(', '));
+});
+
+test('UI: dos toques rapidos de Alt sueltan la eleccion', () => {
+  const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[1].onclick({ altKey: true });
+  assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 2);
+  ui.keyup('Alt');
+  ui.keyup('Alt');
+  assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 0, 'siguen elegidos');
+  assert.strictEqual(ui.board().selState().count, 0);
+});
+
+test('UI: un solo toque de Alt no suelta nada', () => {
+  // Si soltar la tecla bastara, habria que tenerla apretada para pulsar los botones.
+  const ui = mount({ loose: [tile('c:a')] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.keyup('Alt');
+  assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 1);
+});
+
+test('UI: dos toques lentos tampoco: tienen que ser seguidos', () => {
+  const ui = mount({ loose: [tile('c:a')] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.keyup('Alt');
+  ui.avanza(2000);
+  ui.keyup('Alt');
+  assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 1);
+});
+
+test('UI: Escape tambien suelta, que es lo que se espera de Escape', () => {
+  const ui = mount({ loose: [tile('c:a')] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.keyup('Escape');
+  assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 0);
+});
+
+test('UI: soltar otra tecla no deshace nada', () => {
+  const ui = mount({ loose: [tile('c:a')] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.keyup('Shift');
+  ui.keyup('a');
+  assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 1);
+});
+
+test('UI: tras soltar Alt el boton del pie sigue sirviendo', () => {
+  const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[1].onclick({ altKey: true });
+  ui.keyup('Alt');                                    // se suelta para poder pulsar
+  ui.actions()[3].onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'apply', keys: ['c:a', 'c:b'], action: 'disable' });
 });

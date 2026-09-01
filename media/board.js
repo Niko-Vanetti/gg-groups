@@ -13,6 +13,7 @@
   // encontrarse iconos seleccionados al volver seria una sorpresa desagradable.
   const sel = new Set();
   const ICONS = window.ICONS || {};
+  const DOBLE_TOQUE = 450;                  // ms entre los dos toques de Alt
 
   const el = (tag, cls, parent) => {
     const n = document.createElement(tag);
@@ -391,6 +392,23 @@
     e.preventDefault();
     post({ type: 'ungroup', keys: drag.keys });
   };
+
+  // Dos toques rapidos de Alt sueltan la eleccion. Deshacerla con solo soltar la tecla
+  // obligaria a tener Alt apretado para pulsar los botones del pie, que es justo lo que
+  // se hace despues de elegir. Escape hace lo mismo, que es lo que se espera de Escape.
+  let ultimoAlt = 0;
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'Escape') return soltar();
+    if (e.key !== 'Alt') return;
+    const ahora = Date.now();
+    if (ahora - ultimoAlt < DOBLE_TOQUE) soltar();
+    ultimoAlt = ahora;
+  });
+  function soltar() {
+    if (!sel.size) return;
+    sel.clear();
+    render();
+  }
 
   window.addEventListener('message', (e) => {
     if (e.data && e.data.type === 'state') { state = e.data; render(); }

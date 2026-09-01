@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-186%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-192%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -69,6 +69,7 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 | **Arrastrar a un borde** | Lo coloca entre dos iconos |
 | **Arrastrar al vacío** | Lo saca de su carpeta |
 | **Alt+clic en un icono** | Lo añade o lo quita de la selección |
+| **Alt Alt · Escape** | Suelta la selección entera |
 | **Alt+clic en una pila** | Elige de una vez todas las que hay debajo |
 | **Arrastrar uno elegido** | Se lleva a todos los elegidos |
 | **Clic derecho en un icono** | Renombrar · desactivar · desinstalar · ocultar |
@@ -79,8 +80,11 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 
 **Alt+clic** sobre los iconos los va añadiendo a la selección. Con varios elegidos, arrastrar
 uno se los lleva a todos, y los botones del pie actúan sobre el grupo entero: **pausa** los
-apaga, **play** los enciende, la **papelera** los desinstala. Un clic normal suelta la
-selección.
+apaga, **play** los enciende, la **papelera** los desinstala.
+
+Para soltar la selección: un clic normal, **dos toques seguidos de Alt**, o **Escape**. Soltar
+la tecla sin más no la deshace a propósito — si lo hiciera, habría que tener Alt apretado
+para poder pulsar los botones, que es justo lo que se hace después de elegir.
 
 **Pausa** y **play** son el botón de aplicar: enumeran qué va a pasar, cierran VS Code, lo
 aplican y lo vuelven a abrir. Todo en un solo cierre, por muchas que elijas. Si cancelas, no
@@ -180,7 +184,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 186 pruebas, sin necesidad de VS Code
+npm test      # 192 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real
