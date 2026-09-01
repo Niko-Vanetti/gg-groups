@@ -484,24 +484,14 @@ test('encuentra el comando aunque VS Code le haya cambiado el nombre', async () 
   b.restore();
 });
 
-test('si ninguna variante existe, se pide el arrastre a mano', async () => {
-  const b = dockBoard(['viewGroups.board.focus', 'workbench.action.focusAuxiliaryBar']);
+test('si ninguna variante existe, no se insiste ni se molesta', () => {
+  const b = dockBoard(['viewGroups.board.focus']);
   infos.length = 0;
-  assert.strictEqual(await b.dockRight(), false);
-  assert.ok(b.ejecutados.includes('workbench.action.focusAuxiliaryBar'), 'no abrio la barra derecha');
-  assert.strictEqual(infos.length, 1, 'no explico que hay que arrastrar');
-  b.restore();
-});
-
-test('el boton del pie ancla aunque ya se hubiera anclado antes', async () => {
-  const b = dockBoard(
-    ['viewGroups.board.focus', 'workbench.action.moveFocusedViewToSecondarySideBar'],
-    { 'viewGroups.docked': true }
-  );
-  await b.onMessage({ type: 'dock' });
-  assert.deepStrictEqual(b.ejecutados,
-    ['viewGroups.board.focus', 'workbench.action.moveFocusedViewToSecondarySideBar']);
-  b.restore();
+  return b.dockRight().then((ok) => {
+    assert.strictEqual(ok, false);
+    assert.strictEqual(infos.length, 0, 'anclar es una comodidad, no algo que anunciar');
+    b.restore();
+  });
 });
 
 test('abrir la vista dispara el anclaje sin bloquear el pintado', async () => {
@@ -997,9 +987,6 @@ test('el anclaje del arranque no molesta si no se puede', async () => {
   infos.length = 0;
   await b.autoDock();
   assert.strictEqual(infos.length, 0, 'no debe dar la lata al arrancar');
-  // Pero pulsando el boton si explica que hay que arrastrarlo.
-  await b.dockRight();
-  assert.strictEqual(infos.length, 1);
   b.restore();
 });
 
@@ -1340,5 +1327,72 @@ test('sin Python no se finge: se cae a copiar la orden de toda la lista', async 
     'la orden copiada dejaria fuera parte de la lista');
   assert.ok(copiado[0].includes('disable'));
   stub.env = realEnv;
+  b.restore();
+});
+
+// --- acciones sobre varios iconos a la vez ---
+
+test('el interruptor de grupo marca todo lo seleccionado de una vez', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  await b.toggleQueuedMany(['c:buildView', 'c:notesView'], 'disable');
+  assert.deepStrictEqual(b.queue.map((o) => o.ext).sort(), ['acme.build', 'acme.notes']);
+  assert.ok(b.queue.every((o) => o.action === 'disable'));
+  b.restore();
+});
+
+test('marcar un grupo no alterna: lo pedido es lo que se aplica a todos', async () => {
+  // Alternar uno por uno dejaria la mitad marcada al reves de lo que se pidio.
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  await b.toggleQueued('c:buildView');
+  await b.toggleQueuedMany(['c:buildView', 'c:notesView'], 'disable');
+  assert.strictEqual(b.queue.length, 2, 'la ya marcada se desmarco sola');
+  assert.ok(b.queue.every((o) => o.action === 'disable'));
+  b.restore();
+});
+
+test('pedir apagar lo ya apagado no mete nada en la lista', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.build');
+  await b.refresh();
+  await b.toggleQueuedMany(['c:buildView'], 'disable');
+  assert.deepStrictEqual(b.queue, []);
+  await b.toggleQueuedMany(['c:buildView'], 'enable');
+  assert.strictEqual(b.queue.length, 1);
+  b.restore();
+});
+
+test('el grupo no arrastra ni los nativos ni el propio tablero', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  await b.toggleQueuedMany([...NATIVE_KEYS, 'c:viewGroups', 'c:buildView'], 'disable');
+  assert.deepStrictEqual(b.queue.map((o) => o.ext), ['acme.build']);
+  b.restore();
+});
+
+test('desinstalar un grupo pide una sola confirmacion y sin ella no toca nada', async () => {
+  const b = switchBoard(['workbench.extensions.uninstallExtension']);
+  await b.refresh();
+  avisos.length = 0;
+  warnAnswer = null;
+  await b.uninstallMany(['c:buildView', 'c:notesView']);
+  assert.strictEqual(avisos.length, 1, 'deberia preguntar una vez, no una por extension');
+  assert.deepStrictEqual(b.ejecutados, [], 'desinstalo sin permiso');
+  b.restore();
+});
+
+test('al confirmar, desinstala cada extension una sola vez', async () => {
+  const b = switchBoard(['workbench.extensions.uninstallExtension']);
+  await b.refresh();
+  warnAnswer = 'Uninstall';
+  // acme.tasks aporta dos baldosas: la extension es una, y una vez debe desinstalarse.
+  const suyas = b.tiles.filter((x) => x.ext === 'acme.tasks').map((x) => x.key);
+  assert.ok(suyas.length >= 2, 'falta la pieza de prueba');
+  await b.uninstallMany([...suyas, 'c:buildView']);
+  const pedidas = b.ejecutados.filter((c) => c[0] === 'workbench.extensions.uninstallExtension');
+  assert.deepStrictEqual(pedidas.map((c) => c[1]).sort(), ['acme.build', 'acme.tasks']);
+  warnAnswer = null;
   b.restore();
 });

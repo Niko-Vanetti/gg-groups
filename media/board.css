@@ -275,3 +275,16 @@ body {
 .cell.action.apply {
   color: var(--vscode-focusBorder, #2E8FE6);
 }
+
+/* Elegida con Alt: se nota sin confundirse con "marcada para el proximo cierre". */
+.cell.sel {
+  background: var(--vscode-list-activeSelectionBackground, rgba(46, 143, 230, .28));
+  box-shadow: inset 0 0 0 1px var(--vscode-focusBorder, #2E8FE6);
+}
+
+/* Boton sin nada que hacer: se ve, se entiende por que, y no responde. */
+.cell.action.disabled { opacity: .32; cursor: default; }
+.cell.action.disabled:hover { background: none; }
+
+/* Los dibujos del pie, al tamano de los codicons de VS Code. El tinte ya lo pone .mask. */
+.cell.action .mask { width: 16px; height: 16px; }

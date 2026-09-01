@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-170%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-187%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -37,7 +37,8 @@ obvious way: drag one icon onto another, name the folder, done.
 | **Reorder like the real bar** | Drop on an edge to place between icons, on the center to group |
 | **Stack duplicates** | Three icons called *Claude Code* collapse into one with a **3** |
 | **Rename anything** | Icons and folders, whatever makes sense to you |
-| **Hide the noise** | Right-click → hide. The eye button brings them all back |
+| **Hide the noise** | Right-click → hide. The eye at the bottom brings them all back |
+| **Work in groups** | **Alt+click** picks several: they drag together, turn off together, uninstall together |
 | **Disabled ones stay visible** | Turn one off and it greys out at the bottom instead of vanishing, one click from coming back |
 | **Native block, locked** | Explorer, Search, Source Control, Run and Debug, Extensions — pinned on top, in VS Code's own order, indestructible |
 
@@ -67,16 +68,29 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 | **Drag to a folder header** | Moves it in |
 | **Drag to an edge** | Places it between two icons |
 | **Drag to empty space** | Takes it out of its folder |
+| **Alt+click an icon** | Adds or removes it from the selection |
+| **Alt+click a stack** | Picks every icon under it at once |
+| **Drag a picked one** | Takes every picked icon along |
 | **Right-click an icon** | Rename · turn off (onto the list) · uninstall · hide |
 | **Right-click a folder** | Sort A–Z · rename · delete |
-| **＋ A↓ ◉ ▶ ⇥ ↻** | New folder · sort all · show hidden · apply the list · move to right bar · refresh |
+| **Bottom buttons** | New folder · sort all · eye (show hidden) · pause/play (turn the picked ones off or on) · trash (uninstall the picked ones) · apply the list · refresh |
+
+### Picking several
+
+**Alt+click** on icons adds them to the selection. With several picked, dragging one takes
+them all, and the bottom buttons act on the whole group: **pause** turns them off, **play**
+turns them on, the **trash** uninstalls them. A normal click drops the selection.
+
+The pause/play button knows which one applies: pause when everything picked is on, play when
+everything is off. Mix the two and it greys out — there is no sensible action to apply to all
+of them, and guessing would be worse than doing nothing.
 
 ### Keep it always visible
 
 The primary side bar shows one container at a time, so clicking an icon replaces the board.
 Move it to the **secondary side bar** and it stays put while everything else opens on the
 left. GG Groups tries to do this for you on first run; if your VS Code build doesn't expose
-the command, press **⇥** or drag the icon there once — it's remembered forever.
+the command, drag the icon there once — it's remembered forever.
 
 ### Actually disabling one, from a script
 
@@ -157,7 +171,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 170 tests, no VS Code needed
+npm test      # 187 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

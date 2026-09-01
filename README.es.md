@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-170%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-187%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -37,7 +37,8 @@ que creas de la forma evidente: arrastras un icono sobre otro, le pones nombre, 
 | **Reordenar como la barra real** | Por el borde se coloca entre iconos, por el centro se agrupa |
 | **Apilar los repetidos** | Tres iconos llamados *Claude Code* se juntan en uno con un **3** |
 | **Renombrar lo que sea** | Iconos y carpetas, con el nombre que a ti te sirva |
-| **Esconder el ruido** | Clic derecho → ocultar. El botón del ojo los devuelve todos |
+| **Esconder el ruido** | Clic derecho → ocultar. El ojo del pie los devuelve todos |
+| **Trabajar por grupos** | **Alt+clic** elige varios: se arrastran juntos, se apagan juntos, se desinstalan juntos |
 | **Las apagadas siguen a la vista** | Al desactivar una queda en gris al fondo en vez de desaparecer, a un clic de volver |
 | **Bloque nativo, blindado** | Explorador, Buscar, Control de código fuente, Ejecutar y depurar, Extensiones — fijos arriba, en el orden de VS Code, imposibles de romper |
 
@@ -67,17 +68,30 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 | **Arrastrar a la cabecera de una carpeta** | Lo mete dentro |
 | **Arrastrar a un borde** | Lo coloca entre dos iconos |
 | **Arrastrar al vacío** | Lo saca de su carpeta |
+| **Alt+clic en un icono** | Lo añade o lo quita de la selección |
+| **Alt+clic en una pila** | Elige de una vez todas las que hay debajo |
+| **Arrastrar uno elegido** | Se lleva a todos los elegidos |
 | **Clic derecho en un icono** | Renombrar · desactivar (a la lista) · desinstalar · ocultar |
 | **Clic derecho en una carpeta** | Ordenar A–Z · renombrar · eliminar |
-| **＋ A↓ ◉ ▶ ⇥ ↻** | Nueva carpeta · ordenar todo · ver ocultos · aplicar la lista · llevar a la barra derecha · actualizar |
+| **Botones del pie** | Nueva carpeta · ordenar todo · ojo (ver ocultos) · pausa/play (apagar o encender lo elegido) · papelera (desinstalar lo elegido) · aplicar la lista · actualizar |
+
+### Elegir varios
+
+**Alt+clic** sobre los iconos los va añadiendo a la selección. Con varios elegidos, arrastrar
+uno se los lleva a todos, y los botones del pie actúan sobre el grupo entero: **pausa** los
+apaga, **play** los enciende, la **papelera** los desinstala. Un clic normal suelta la
+selección.
+
+El botón de pausa/play sabe qué toca: aparece como pausa si todo lo elegido está encendido, y
+como play si todo está apagado. Si mezclas encendidas y apagadas se pone gris — no hay una
+acción sensata que aplicar a todas, y elegir por su cuenta sería peor que no hacer nada.
 
 ### Para tenerlo siempre visible
 
 La barra lateral principal muestra un contenedor cada vez, así que al pulsar un icono el
 tablero se cierra. Llévalo a la **barra lateral secundaria** y se queda fijo mientras todo lo
 demás se abre a la izquierda. GG Groups lo intenta solo la primera vez; si tu versión de VS
-Code no expone ese comando, pulsa **⇥** o arrastra el icono allí una vez — se recuerda para
-siempre.
+Code no expone ese comando, arrastra el icono allí una vez — se recuerda para siempre.
 
 ### Desactivar una de verdad, desde un guion
 
@@ -161,7 +175,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 170 pruebas, sin necesidad de VS Code
+npm test      # 187 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

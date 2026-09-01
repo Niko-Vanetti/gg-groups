@@ -626,6 +626,60 @@ class Board {
     this.render();
   }
 
+  /**
+   * Marca de golpe todo lo seleccionado. Se piden apagar o encender explicitamente en vez
+   * de alternar uno por uno: con varios iconos, alternar cada cual por su cuenta dejaria
+   * la mitad marcada al reves de lo que se queria.
+   */
+  async toggleQueuedMany(keys, action) {
+    if (!Array.isArray(keys) || !keys.length) return;
+    const cola = this.queue;
+    const dentro = new Set(cola.map((o) => o.key));
+    const nuevas = [];
+    for (const key of keys) {
+      if (dentro.has(key)) continue;
+      const tile = this.tiles.find((x) => x.key === key);
+      if (!tile || tile.native || !tile.ext || tile.ext === 'vscode') continue;
+      // Pedir apagar lo que ya esta apagado no cambia nada: se deja fuera.
+      if (action === 'disable' ? tile.off : !tile.off) continue;
+      nuevas.push({ key, ext: tile.ext, action });
+    }
+    if (!nuevas.length) return;
+    await this.ctx.globalState.update(KEY_QUEUE, [...cola, ...nuevas]);
+    this.render();
+  }
+
+  /** Desinstala varias de una vez, con una sola confirmacion que las enumera todas. */
+  async uninstallMany(keys) {
+    const tiles = (Array.isArray(keys) ? keys : [])
+      .map((k) => this.tiles.find((x) => x.key === k))
+      .filter((t) => t && !t.native && t.ext && t.ext !== 'vscode');
+    if (!tiles.length) return;
+    if (tiles.length === 1) return this.uninstall(tiles[0].key);
+
+    // Por extension, no por baldosa: una extension con dos iconos se desinstala una vez.
+    const exts = [...new Set(tiles.map((t) => t.ext))];
+    const yes = t('Uninstall');
+    const pick = await vscode.window.showWarningMessage(
+      t('Uninstall {0} extensions? They are deleted from disk.', exts.length),
+      { modal: true, detail: tiles.map((x) => this.nameOf(x)).join('\n') }, yes
+    );
+    if (pick !== yes) return;
+    for (const ext of exts) {
+      for (const cmd of UNINSTALL_CMDS) {
+        try {
+          await vscode.commands.executeCommand(cmd, ext);
+          break;
+        } catch (e) {
+          console.error('[GG Groups] no se pudo desinstalar', ext, e);
+        }
+      }
+      await this.ctx.globalState.update(KEY_SEEN, this.seen.filter((o) => o.ext !== ext));
+      await this.ctx.globalState.update(KEY_REMOVED, [...this.list(KEY_REMOVED), ext]);
+    }
+    await this.refresh();
+  }
+
   async clearQueue() {
     await this.ctx.globalState.update(KEY_QUEUE, []);
     this.render();
@@ -808,7 +862,7 @@ class Board {
     }
   }
 
-  async dockRight(silent) {
+  async dockRight() {
     const all = await this.moveCommands();
     const targets = all.filter((c) => MOVE_RIGHT.test(c));
     if (!targets.length) targets.push('workbench.action.moveFocusedViewToSecondarySideBar');
@@ -823,16 +877,7 @@ class Board {
       }
     }
     console.error('[GG Groups] comandos de mover disponibles:', all);
-    if (!silent) await this.dockManually();
     return false;
-  }
-
-  /** Respaldo: se abre la barra derecha y se le pide al usuario que arrastre el icono. */
-  async dockManually() {
-    try {
-      await vscode.commands.executeCommand('workbench.action.focusAuxiliaryBar');
-    } catch { /* ni siquiera eso: al menos queda el aviso */ }
-    vscode.window.showInformationMessage(t('Now drag the Groups icon into the right bar.'));
   }
 
   /** La primera vez el tablero se ancla solo a la barra derecha, para no taparse. */
@@ -840,7 +885,7 @@ class Board {
     if (this.ctx.globalState.get(KEY_DOCKED)) return;
     await this.ctx.globalState.update(KEY_DOCKED, true);
     // En el arranque no se molesta al usuario: si no se puede, queda donde esta.
-    await this.dockRight(true);
+    await this.dockRight();
   }
 
   byName(a, b) {
@@ -1103,6 +1148,10 @@ class Board {
         return this.setHidden(m.keys, false);
       case 'queue':
         return this.toggleQueued(m.key);
+      case 'queueMany':
+        return this.toggleQueuedMany(m.keys, m.action === 'enable' ? 'enable' : 'disable');
+      case 'uninstallMany':
+        return this.uninstallMany(m.keys);
       case 'applyQueue':
         return this.applyQueue();
       case 'clearQueue':
@@ -1124,8 +1173,6 @@ class Board {
 
       case 'newFolder':
         return this.newFolder();
-      case 'dock':
-        return this.dockRight();
       case 'refresh':
         return this.refresh();
     }
@@ -1142,6 +1189,13 @@ class Board {
   html(w) {
     const nonce = String(Math.random()).slice(2);
     const uri = (f) => w.asWebviewUri(vscode.Uri.joinPath(this.ctx.extensionUri, 'media', f));
+    // Los botones del pie usan los codicons oficiales, como cualquier icono de la barra.
+    const icons = {};
+    for (const n of ['new-folder', 'list-ordered', 'eye', 'eye-closed', 'debug-pause',
+                     'play', 'trash', 'check-all', 'refresh']) {
+      icons[n] = String(w.asWebviewUri(
+        vscode.Uri.joinPath(this.ctx.extensionUri, 'media', 'codicons', n + '.svg')));
+    }
     const strings = {
       newFolder: t('New folder'), refresh: t('Refresh'), sortAll: t('Sort everything A-Z'),
       sort: t('Sort A-Z'), rename: t('Rename folder'), renameTile: t('Rename icon'),
@@ -1153,8 +1207,11 @@ class Board {
       clearQueue: t('Empty the list'),
       hide: t('Hide icon'), unhide: t('Show icon'), showHiddenOn: t('Show hidden icons'),
       showHiddenOff: t('Stop showing hidden icons'), unhideAll: t('Show all hidden icons'),
-      dock: t('Move the board to the right bar'),
-      hint: t('Drag one icon onto another to group them.'),
+      pickFirst: t('Alt+click icons to pick several'),
+      disableSel: t('Turn the selected ones off'), enableSel: t('Turn the selected ones on'),
+      mixedPick: t('Some are on and some are off: pick only one kind'),
+      uninstallSel: t('Uninstall the selected ones'),
+      hint: t('Drag one icon onto another to group them. Alt+click to pick several.'),
     };
     return `<!DOCTYPE html><html><head>
 <meta charset="utf-8">
@@ -1165,6 +1222,7 @@ class Board {
 <div id="rail"><div id="items"></div><div id="actions"></div></div>
 <div id="hint"></div>
 <script nonce="${nonce}">window.STR = ${JSON.stringify(strings)};
+window.ICONS = ${JSON.stringify(icons)};
 document.getElementById('hint').textContent = window.STR.hint;</script>
 <script nonce="${nonce}" src="${uri('board.js')}"></script>
 </body></html>`;

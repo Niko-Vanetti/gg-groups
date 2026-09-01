@@ -9,6 +9,10 @@
   const saved = vscode.getState() || {};
   const open = new Set(saved.open || []);   // carpetas y pilas desplegadas
   let active = saved.active || null;        // ultimo icono pulsado
+  // Seleccion con Alt. No se guarda entre sesiones a proposito: es de usar y tirar, y
+  // encontrarse iconos seleccionados al volver seria una sorpresa desagradable.
+  const sel = new Set();
+  const ICONS = window.ICONS || {};
 
   const el = (tag, cls, parent) => {
     const n = document.createElement(tag);
@@ -21,6 +25,28 @@
   const clearOver = () => [...document.querySelectorAll('.over, .ins-before, .ins-after')]
     .forEach((n) => n.classList.remove('over', 'ins-before', 'ins-after'));
   const folderOf = (key) => state.folders.find((f) => (f.tiles || []).some((x) => x.key === key));
+
+  /** Todas las baldosas pintadas, sin importar en que carpeta esten. */
+  const allTiles = () => (state.folders || []).flatMap((f) => f.tiles || []).concat(state.loose || []);
+  const selectedTiles = () => allTiles().filter((x) => sel.has(x.key));
+
+  function toggleSel(keys) {
+    for (const k of keys) sel.has(k) ? sel.delete(k) : sel.add(k);
+    render();
+  }
+
+  /**
+   * Que puede hacerse con lo seleccionado. Apagar y encender no se mezclan: con unas
+   * encendidas y otras apagadas no hay una accion sensata que aplicar a todas, asi que
+   * el boton se apaga en vez de elegir por su cuenta.
+   */
+  function selState() {
+    const tiles = selectedTiles();
+    if (!tiles.length) return { count: 0, action: 'disable', ready: false, mixed: false };
+    const off = tiles.filter((x) => x.off).length;
+    const mixed = off > 0 && off < tiles.length;
+    return { count: tiles.length, action: off ? 'enable' : 'disable', ready: !mixed, mixed };
+  }
 
   /**
    * Varias extensiones con el mismo nombre (tres "Claude Code", por ejemplo) se muestran
@@ -88,7 +114,10 @@
   function draggable(n, keys) {
     n.draggable = true;
     n.ondragstart = (e) => {
-      drag = { keys };
+      // Si lo que se arrastra es parte de la seleccion, van todos: es justo para lo que
+      // sirve seleccionar varios.
+      const ks = sel.size > 1 && keys.some((k) => sel.has(k)) ? allTiles().map((x) => x.key).filter((k) => sel.has(k)) : keys;
+      drag = { keys: ks };
       n.classList.add('dragging');
       if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', keys[0]); }
     };
@@ -139,13 +168,17 @@
     const nextKey = list && list[i + 1] ? (list[i + 1].key || (list[i + 1].tiles || [])[0].key) : null;
     const n = el('div', 'cell' + (active === t.key ? ' active' : '') +
       (inside ? ' inside' : '') + (t.hidden ? ' faded' : '') + (t.off ? ' off' : '') +
-      (t.queued ? ' queued' : ''));
+      (t.queued ? ' queued' : '') + (sel.has(t.key) ? ' sel' : ''));
+    // Ni el bloque nativo ni el propio tablero: ninguna accion de grupo les aplica.
+    const elegible = !locked && !t.fixed;
     n.title = t.label + (t.owner && t.owner !== t.label ? ' — ' + t.owner : '') +
       (t.queued ? ' · ' + (t.queued === 'disable' ? S.disable : S.enable) : '');
     n.dataset.key = t.key;
     n.appendChild(art(t));
 
-    n.onclick = () => {
+    n.onclick = (e) => {
+      if (elegible && e && e.altKey) return toggleSel([t.key]);
+      sel.clear();
       active = t.key;
       persist();
       render();
@@ -172,7 +205,9 @@
     n.appendChild(art(s));
     el('span', 'count', n).textContent = s.tiles.length;
 
-    n.onclick = () => {
+    n.onclick = (e) => {
+      // Con Alt entran todas las de la pila: es lo que se ve, y es lo que se espera.
+      if (e && e.altKey) return toggleSel(keys.filter((k) => !sel.has(k)).length ? keys.filter((k) => !sel.has(k)) : keys);
       open.has(s.stack) ? open.delete(s.stack) : open.add(s.stack);
       persist();
       render();
@@ -266,34 +301,51 @@
   /** Los botones del pie, como el engranaje de la barra real. */
   function renderActions() {
     actions.textContent = '';
-    const btn = (text, tip, fn, on) => {
-      const b = el('div', 'cell action' + (on ? ' on' : ''), actions);
-      b.textContent = text;
+    const btn = (icono, tip, fn, extra) => {
+      const b = el('div', 'cell action' + (extra || ''), actions);
+      const marca = el('span', 'mask', b);
+      marca.style.webkitMaskImage = 'url("' + (ICONS[icono] || '') + '")';
+      marca.style.maskImage = 'url("' + (ICONS[icono] || '') + '")';
       b.title = tip;
-      b.onclick = fn;
+      if (fn) b.onclick = fn;
       return b;
     };
-    btn('＋', S.newFolder, () => post({ type: 'newFolder' }));
-    btn('A↓', S.sortAll, () => post({ type: 'sort' }));
+    btn('new-folder', S.newFolder, () => post({ type: 'newFolder' }));
+    btn('list-ordered', S.sortAll, () => post({ type: 'sort' }));
+
     const ocultos = state.hiddenCount || 0;
-    const ojo = btn('◉', (state.showHidden ? S.showHiddenOff : S.showHiddenOn) +
-      (ocultos ? ' (' + ocultos + ')' : ''), () => post({ type: 'toggleHidden' }), state.showHidden);
-    // Con iconos escondidos, el boton lleva su numero y ofrece recuperarlos todos de golpe.
+    // El ojo dice en que estado esta: abierto se ven, cerrado no.
+    const ojo = btn(state.showHidden ? 'eye' : 'eye-closed',
+      (state.showHidden ? S.showHiddenOff : S.showHiddenOn) + (ocultos ? ' (' + ocultos + ')' : ''),
+      () => post({ type: 'toggleHidden' }), state.showHidden ? ' on' : '');
     if (ocultos) {
       el('span', 'count', ojo).textContent = ocultos;
       ojo.oncontextmenu = (e) => menu(e, [[S.unhideAll, () => post({ type: 'unhideAll' })]]);
     }
-    // El boton de aplicar solo aparece cuando hay algo marcado: si no, no hay nada que hacer.
+
+    // Pausa o play segun lo seleccionado; gris cuando no hay nada que hacer con ello.
+    const s2 = selState();
+    const puede = s2.count > 0 && s2.ready;
+    const interruptor = btn(s2.action === 'enable' ? 'play' : 'debug-pause',
+      !s2.count ? S.pickFirst : (s2.mixed ? S.mixedPick
+        : (s2.action === 'enable' ? S.enableSel : S.disableSel) + ' (' + s2.count + ')'),
+      puede ? () => post({ type: 'queueMany', keys: [...sel], action: s2.action }) : null,
+      puede ? '' : ' disabled');
+    if (s2.count) el('span', 'count', interruptor).textContent = s2.count;
+
+    btn('trash', s2.count ? S.uninstallSel + ' (' + s2.count + ')' : S.pickFirst,
+      s2.count ? () => post({ type: 'uninstallMany', keys: [...sel] }) : null,
+      s2.count ? '' : ' disabled');
+
+    // El boton de aplicar solo aparece cuando hay algo marcado: si no, no hay que aplicar.
     const marcadas = state.queueCount || 0;
     if (marcadas) {
-      const aplicar = btn('▶', S.applyQueue + ' (' + marcadas + ')',
-        () => post({ type: 'applyQueue' }), true);
-      aplicar.classList.add('apply');
+      const aplicar = btn('check-all', S.applyQueue + ' (' + marcadas + ')',
+        () => post({ type: 'applyQueue' }), ' apply on');
       el('span', 'count', aplicar).textContent = marcadas;
       aplicar.oncontextmenu = (e) => menu(e, [[S.clearQueue, () => post({ type: 'clearQueue' })]]);
     }
-    btn('⇥', S.dock, () => post({ type: 'dock' }));
-    btn('↻', S.refresh, () => post({ type: 'refresh' }));
+    btn('refresh', S.refresh, () => post({ type: 'refresh' }));
   }
 
   /** Pinta una lista de baldosas aplicando el apilado por nombre. */
@@ -312,6 +364,10 @@
   function render() {
     closeMenu();
     items.textContent = '';
+    // Una baldosa puede desaparecer entre dos repintados; dejarla seleccionada haria que
+    // los botones contaran cosas que ya no estan.
+    const vivas = new Set(allTiles().map((x) => x.key));
+    for (const k of [...sel]) if (!vivas.has(k)) sel.delete(k);
     const folders = Array.isArray(state.folders) ? state.folders : [];
     const loose = Array.isArray(state.loose) ? state.loose : [];
 
@@ -352,5 +408,5 @@
   render();
 
   // Solo para las pruebas: expone el estado interno del webview.
-  window.__board = { render, stacked, get state() { return state; }, get drag() { return drag; }, open };
+  window.__board = { render, stacked, get state() { return state; }, get drag() { return drag; }, open, sel, selState };
 })();

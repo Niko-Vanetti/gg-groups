@@ -7,7 +7,6 @@
   "Rename folder": "Cambiar nombre",
   "Remove from folder": "Sacar de la carpeta",
   "Delete folder": "Eliminar carpeta",
-  "Drag one icon onto another to group them.": "Arrastra un icono sobre otro para agruparlos.",
   "it did not respond": "no respondio",
   "Native": "Nativo",
   "Explorer": "Explorador",
@@ -25,8 +24,6 @@
   "Show icon": "Mostrar icono",
   "Show hidden icons": "Mostrar los iconos ocultos",
   "Stop showing hidden icons": "Dejar de mostrar los ocultos",
-  "Now drag the Groups icon into the right bar.": "Ahora arrastra el icono de Grupos hasta la barra derecha.",
-  "Move the board to the right bar": "Llevar el tablero a la barra derecha",
   "Chat": "Chat",
   "Show all hidden icons": "Recuperar todos los ocultos",
   "Everything checks out.": "Todo correcto.",
@@ -50,5 +47,12 @@
   "Apply {0} changes? VS Code closes, applies them and opens again.": "¿Aplicar {0} cambios? VS Code se cierra, los aplica y se vuelve a abrir.",
   "Could not apply the list: {0}": "No se pudo aplicar la lista: {0}",
   "Could not open \"{0}\": {1}": "No se pudo abrir \"{0}\": {1}",
-  "A window will open. Do not open VS Code yourself: it opens it for you when it finishes.": "Se abrirá una ventana. No abras VS Code tú: ella lo abre al terminar."
+  "A window will open. Do not open VS Code yourself: it opens it for you when it finishes.": "Se abrirá una ventana. No abras VS Code tú: ella lo abre al terminar.",
+  "Alt+click icons to pick several": "Alt+clic en los iconos para elegir varios",
+  "Turn the selected ones off": "Desactivar los seleccionados",
+  "Turn the selected ones on": "Activar los seleccionados",
+  "Some are on and some are off: pick only one kind": "Hay activas y desactivadas mezcladas: elige de un solo tipo",
+  "Uninstall the selected ones": "Desinstalar los seleccionados",
+  "Uninstall {0} extensions? They are deleted from disk.": "¿Desinstalar {0} extensiones? Se borran del disco.",
+  "Drag one icon onto another to group them. Alt+click to pick several.": "Arrastra un icono sobre otro para agruparlos. Alt+clic para elegir varios."
 }

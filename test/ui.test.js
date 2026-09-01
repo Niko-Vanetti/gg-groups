@@ -10,7 +10,10 @@ const STR = {
   hint: 'Arrastra un icono sobre otro', sort: 'Ordenar A-Z', sortAll: 'Ordenar todo A-Z',
   renameTile: 'Cambiar nombre del icono', resetName: 'Usar el nombre original',
   hide: 'Ocultar icono', unhide: 'Mostrar icono',
-  showHiddenOn: 'Ver ocultos', showHiddenOff: 'Dejar de ver ocultos', dock: 'Mover a otra barra',
+  showHiddenOn: 'Ver ocultos', showHiddenOff: 'Dejar de ver ocultos',
+  pickFirst: 'Alt+clic para elegir varios', mixedPick: 'Hay de los dos tipos mezclados',
+  disableSel: 'Desactivar los elegidos', enableSel: 'Activar los elegidos',
+  uninstallSel: 'Desinstalar los elegidos',
   unhideAll: 'Recuperar todos los ocultos',
   disable: 'Desactivar la extension', enable: 'Activar la extension', forget: 'Quitar del tablero',
   uninstall: 'Desinstalar la extension',
@@ -34,6 +37,12 @@ function mount(state) {
     setState: (s) => { saved = s; },
   });
   window.STR = STR;
+  // Los mismos nombres de codicon que sirve la extension, con una ruta de mentira.
+  window.ICONS = {};
+  for (const n of ['new-folder', 'list-ordered', 'eye', 'eye-closed', 'debug-pause',
+                   'play', 'trash', 'check-all', 'refresh']) {
+    window.ICONS[n] = 'vsc://codicons/' + n + '.svg';
+  }
   window.eval(SRC);
 
   const api = {
@@ -48,6 +57,7 @@ function mount(state) {
     stacks: () => [...window.document.querySelectorAll('#items .cell.stack')],
     folders: () => [...window.document.querySelectorAll('#items .cell.folder')],
     actions: () => [...window.document.querySelectorAll('#actions .cell')],
+    board: () => window.__board,
     ev: () => ({ preventDefault() {}, stopPropagation() {}, clientX: 10, clientY: 10, dataTransfer: { setData() {} } }),
     // Arrastra el nodo `from` y lo suelta sobre `to`.
     dragTo(from, to) {
@@ -66,7 +76,7 @@ const tile = (key, extra) => ({ key, label: key.toUpperCase(), owner: 'Ext ' + k
 test('UI: arranca sin estado y sin lanzar', () => {
   const ui = mount();
   assert.strictEqual(ui.cells().length, 0);
-  assert.strictEqual(ui.actions().length, 5, 'faltan los botones de abajo');
+  assert.strictEqual(ui.actions().length, 6, 'faltan los botones de abajo');
 });
 
 test('UI: un estado sin folders ni loose no rompe (el fallo del .map)', () => {
@@ -199,18 +209,32 @@ test('UI: dentro de una carpeta soltar sobre otro icono reordena, nunca agrupa',
 
 test('UI: los botones del pie mandan su mensaje', () => {
   const ui = mount({ loose: [] });
-  const [nueva, ordenar, ocultos, mover, recargar] = ui.actions();
-  const esperado = [
+  const [nueva, ordenar, ocultos, interruptor, papelera, recargar] = ui.actions();
+  for (const [boton, msg, tip] of [
     [nueva, { type: 'newFolder' }, STR.newFolder],
     [ordenar, { type: 'sort' }, STR.sortAll],
     [ocultos, { type: 'toggleHidden' }, STR.showHiddenOn],
-    [mover, { type: 'dock' }, STR.dock],
     [recargar, { type: 'refresh' }, STR.refresh],
-  ];
-  for (const [boton, msg, tip] of esperado) {
+  ]) {
     boton.onclick();
     assert.deepStrictEqual(ui.last(), msg);
     assert.strictEqual(boton.title, tip);
+  }
+  // Sin nada elegido, los de grupo se ven pero no responden.
+  for (const boton of [interruptor, papelera]) {
+    assert.ok(boton.className.includes('disabled'));
+    assert.strictEqual(boton.onclick, null, 'actuaria sobre una seleccion vacia');
+    assert.strictEqual(boton.title, STR.pickFirst);
+  }
+});
+
+test('UI: cada boton del pie lleva su dibujo, no una letra', () => {
+  const ui = mount({ loose: [] });
+  for (const boton of ui.actions()) {
+    const marca = boton.querySelector('.mask');
+    assert.ok(marca, 'un boton sin dibujo: ' + boton.title);
+    assert.ok(/url\(/.test(marca.style.maskImage || marca.style.webkitMaskImage || ''),
+      'el dibujo no se cargo: ' + boton.title);
   }
 });
 
@@ -551,4 +575,106 @@ test('UI: el boton de aplicar ofrece vaciar la lista sin aplicarla', () => {
   boton.oncontextmenu(ui.ev());
   [...ui.doc.getElementById('menu').children][0].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'clearQueue' });
+});
+
+// --- elegir varios con Alt ---
+
+test('UI: Alt+clic elige, y sin Alt abre', () => {
+  const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
+  ui.cells()[0].onclick({ altKey: true });
+  assert.ok(ui.cells()[0].className.includes('sel'));
+  assert.strictEqual(ui.last(), undefined, 'elegir no deberia abrir nada');
+
+  ui.cells()[1].onclick({});
+  assert.deepStrictEqual(ui.last(), { type: 'open', key: 'c:b' });
+  assert.ok(!ui.cells()[0].className.includes('sel'), 'un clic normal deberia soltar lo elegido');
+});
+
+test('UI: Alt+clic otra vez lo quita de la seleccion', () => {
+  const ui = mount({ loose: [tile('c:a')] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[0].onclick({ altKey: true });
+  assert.ok(!ui.cells()[0].className.includes('sel'));
+});
+
+test('UI: ni el bloque nativo ni el propio tablero se pueden elegir', () => {
+  const ui = mount({
+    folders: [{ name: 'Nativo', locked: true, tiles: [tile('c:n', { fixed: true })] }],
+    loose: [tile('c:yo', { fixed: true })],
+  });
+  ui.folders()[0].onclick();
+  ui.doc.querySelector('.kids .cell').onclick({ altKey: true });
+  ui.cells().find((c) => c.dataset.key === 'c:yo').onclick({ altKey: true });
+  assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 0);
+});
+
+test('UI: arrastrar uno de los elegidos los arrastra todos', () => {
+  const ui = mount({ loose: [tile('c:a'), tile('c:b'), tile('c:c')] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[1].onclick({ altKey: true });
+  ui.cells()[0].ondragstart({ dataTransfer: null });
+  assert.deepStrictEqual([...ui.board().drag.keys], ['c:a', 'c:b']);
+});
+
+test('UI: arrastrar uno de fuera de la seleccion se lleva solo a ese', () => {
+  const ui = mount({ loose: [tile('c:a'), tile('c:b'), tile('c:c')] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[1].onclick({ altKey: true });
+  ui.cells()[2].ondragstart({ dataTransfer: null });
+  assert.deepStrictEqual([...ui.board().drag.keys], ['c:c']);
+});
+
+test('UI: con todo encendido el boton es pausa, y apaga el grupo', () => {
+  const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[1].onclick({ altKey: true });
+  const boton = ui.actions()[3];
+  assert.ok(/debug-pause/.test(boton.querySelector('.mask').style.maskImage));
+  assert.ok(boton.title.includes('2'));
+  boton.onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'queueMany', keys: ['c:a', 'c:b'], action: 'disable' });
+});
+
+test('UI: con todo apagado el boton es play, y enciende el grupo', () => {
+  const ui = mount({ loose: [tile('c:a', { off: true }), tile('c:b', { off: true })] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[1].onclick({ altKey: true });
+  const boton = ui.actions()[3];
+  assert.ok(/play/.test(boton.querySelector('.mask').style.maskImage));
+  boton.onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'queueMany', keys: ['c:a', 'c:b'], action: 'enable' });
+});
+
+test('UI: mezclando encendidas y apagadas el boton se apaga y explica por que', () => {
+  const ui = mount({ loose: [tile('c:a'), tile('c:b', { off: true })] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[1].onclick({ altKey: true });
+  const boton = ui.actions()[3];
+  assert.ok(boton.className.includes('disabled'));
+  assert.strictEqual(boton.onclick, null, 'apagaria o encenderia eligiendo por su cuenta');
+  assert.strictEqual(boton.title, STR.mixedPick);
+});
+
+test('UI: la papelera desinstala lo elegido', () => {
+  const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
+  ui.cells()[0].onclick({ altKey: true });
+  const papelera = ui.actions()[4];
+  assert.ok(!papelera.className.includes('disabled'));
+  papelera.onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'uninstallMany', keys: ['c:a'] });
+});
+
+test('UI: el ojo se abre y se cierra segun lo que hace', () => {
+  const oculto = mount({ loose: [], showHidden: false });
+  assert.ok(/eye-closed/.test(oculto.actions()[2].querySelector('.mask').style.maskImage));
+  const visto = mount({ loose: [], showHidden: true });
+  assert.ok(/eye\.svg/.test(visto.actions()[2].querySelector('.mask').style.maskImage));
+});
+
+test('UI: lo elegido que desaparece deja de contar', () => {
+  const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[1].onclick({ altKey: true });
+  ui.send({ type: 'state', folders: [], loose: [tile('c:a')] });      // c:b ya no esta
+  assert.strictEqual(ui.board().selState().count, 1, 'contaria iconos que ya no existen');
 });
