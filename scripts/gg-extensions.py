@@ -175,11 +175,15 @@ def main():
             if clave in apagadas:
                 print('  ya estaba apagada  ' + i)
                 continue
-            if clave not in catalogo:
-                print('  no instalada, se omite  ' + i)
-                continue
-            nueva.append({k: v for k, v in catalogo[clave].items() if v})
-            print('  desactivada  ' + catalogo[clave]['id'])
+            if clave in catalogo:
+                nueva.append({k: v for k, v in catalogo[clave].items() if v})
+                print('  desactivada  ' + catalogo[clave]['id'])
+            else:
+                # Las que trae VS Code de fabrica (References, Emmet...) no estan en la
+                # carpeta del usuario y no tienen uuid. VS Code las acepta solo con el id,
+                # que es lo mismo que escribe al deshabilitarlas desde su propia vista.
+                nueva.append({'id': i})
+                print('  desactivada (integrada en VS Code)  ' + i)
 
     if nueva == desactivadas:
         print('Sin cambios.')

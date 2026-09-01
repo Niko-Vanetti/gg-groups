@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-190%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-193%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -81,6 +81,9 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 uno se los lleva a todos, y los botones del pie actúan sobre el grupo entero: **pausa** los
 apaga, **play** los enciende, la **papelera** los desinstala. Un clic normal suelta la
 selección.
+
+Pausa y play **marcan**, no aplican: te avisan de cuántas marcaste y te ofrecen aplicarlo
+ahí mismo. Nada cambia hasta que lo apliques, y entonces todo se aplica en un solo cierre.
 
 El botón de pausa/play sabe qué toca: aparece como pausa si todo lo elegido está encendido, y
 como play si todo está apagado. Si mezclas encendidas y apagadas se pone gris — no hay una
@@ -175,7 +178,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 190 pruebas, sin necesidad de VS Code
+npm test      # 193 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

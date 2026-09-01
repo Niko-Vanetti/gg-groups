@@ -1414,3 +1414,33 @@ test('si todavia no hay baldosas, primero se descubren', async () => {
   assert.ok(b.tiles.length, 'se quedaria en negro hasta el primer refresco');
   assert.strictEqual(b.last().type, 'state');
 });
+
+test('marcar avisa de que no ha cambiado nada todavia', async () => {
+  // Sin avisar, el boton se vive como que no hizo nada: marca en silencio y ya.
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  infos.length = 0;
+  await b.toggleQueuedMany(['c:buildView', 'c:notesView'], 'disable');
+  assert.strictEqual(infos.length, 1, 'marco sin decirlo');
+  assert.ok(/2/.test(infos[0]), 'no dice cuantas marco');
+  b.restore();
+});
+
+test('quitar de la lista no avisa de nada', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  await b.toggleQueued('c:buildView');
+  infos.length = 0;
+  await b.toggleQueued('c:buildView');
+  assert.deepStrictEqual(infos, [], 'desmarcar no necesita anuncio');
+  b.restore();
+});
+
+test('el guion desactiva tambien las que trae VS Code de fabrica', () => {
+  // References, Emmet y demas no estan en la carpeta del usuario y no tienen uuid:
+  // exigirlas en el catalogo las saltaba en silencio.
+  const py = fs.readFileSync(path.join(ROOT, 'scripts', 'gg-extensions.py'), 'utf8');
+  assert.ok(/integrada en VS Code/.test(py), 'no contempla las integradas');
+  assert.ok(/nueva\.append\(\{'id': i\}\)/.test(py), 'no las escribe solo con el id');
+  assert.ok(!/no instalada, se omite/.test(py), 'sigue saltandoselas');
+});

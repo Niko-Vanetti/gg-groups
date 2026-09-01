@@ -624,6 +624,18 @@ class Board {
     await this.ctx.globalState.update(KEY_QUEUE,
       [...cola, { key, ext: tile.ext, action: tile.off ? 'enable' : 'disable' }]);
     this.render();
+    this.offerApply(1);
+  }
+
+  /**
+   * Marcar no cambia nada hasta que se aplica, y eso, sin decirlo, se vive como que el
+   * boton no hizo nada. Asi que se dice, y se ofrece aplicarlo ahi mismo.
+   */
+  async offerApply(cuantas) {
+    const ahora = t('Apply now');
+    const pick = await vscode.window.showInformationMessage(
+      t('{0} marked. Nothing changes until you apply.', cuantas), ahora);
+    if (pick === ahora) await this.applyQueue();
   }
 
   /**
@@ -647,6 +659,7 @@ class Board {
     if (!nuevas.length) return;
     await this.ctx.globalState.update(KEY_QUEUE, [...cola, ...nuevas]);
     this.render();
+    this.offerApply(nuevas.length);
   }
 
   /** Desinstala varias de una vez, con una sola confirmacion que las enumera todas. */

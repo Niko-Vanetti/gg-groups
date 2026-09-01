@@ -54,5 +54,7 @@
   "Some are on and some are off: pick only one kind": "Hay activas y desactivadas mezcladas: elige de un solo tipo",
   "Uninstall the selected ones": "Desinstalar los seleccionados",
   "Uninstall {0} extensions? They are deleted from disk.": "¿Desinstalar {0} extensiones? Se borran del disco.",
-  "Drag one icon onto another to group them. Alt+click to pick several.": "Arrastra un icono sobre otro para agruparlos. Alt+clic para elegir varios."
+  "Drag one icon onto another to group them. Alt+click to pick several.": "Arrastra un icono sobre otro para agruparlos. Alt+clic para elegir varios.",
+  "Apply now": "Aplicar ahora",
+  "{0} marked. Nothing changes until you apply.": "{0} marcadas. No cambia nada hasta que lo apliques."
 }
