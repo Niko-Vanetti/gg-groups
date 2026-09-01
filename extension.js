@@ -624,18 +624,9 @@ class Board {
     await this.ctx.globalState.update(KEY_QUEUE,
       [...cola, { key, ext: tile.ext, action: tile.off ? 'enable' : 'disable' }]);
     this.render();
-    this.offerApply(1);
-  }
-
-  /**
-   * Marcar no cambia nada hasta que se aplica, y eso, sin decirlo, se vive como que el
-   * boton no hizo nada. Asi que se dice, y se ofrece aplicarlo ahi mismo.
-   */
-  async offerApply(cuantas) {
-    const ahora = t('Apply now');
-    const pick = await vscode.window.showInformationMessage(
-      t('{0} marked. Nothing changes until you apply.', cuantas), ahora);
-    if (pick === ahora) await this.applyQueue();
+    // Marcar y quedarse callado se vive como que el boton no hizo nada: se pregunta ya.
+    // Si se cancela, lo marcado sigue ahi y el visto del pie lo aplica cuando toque.
+    await this.applyQueue();
   }
 
   /**
@@ -659,7 +650,7 @@ class Board {
     if (!nuevas.length) return;
     await this.ctx.globalState.update(KEY_QUEUE, [...cola, ...nuevas]);
     this.render();
-    this.offerApply(nuevas.length);
+    await this.applyQueue();
   }
 
   /** Desinstala varias de una vez, con una sola confirmacion que las enumera todas. */
@@ -968,6 +959,12 @@ class Board {
   roots() {
     const list = [this.ctx.extensionUri];
     for (const e of vscode.extensions.all) if (e.extensionUri) list.push(e.extensionUri);
+    // Una extension apagada ya no esta en extensions.all, asi que su carpeta se quedaba
+    // fuera de los permisos del webview: el archivo del logo no cargaba y el icono caia
+    // a la inicial. El catalogo si recuerda donde estaba, y de ahi sale el permiso.
+    for (const o of this.seen) {
+      if (o.iconPath) list.push(vscode.Uri.joinPath(vscode.Uri.file(o.iconPath), '..'));
+    }
     return list;
   }
 

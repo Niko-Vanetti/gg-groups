@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-193%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-195%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -81,8 +81,9 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 them all, and the bottom buttons act on the whole group: **pause** turns them off, **play**
 turns them on, the **trash** uninstalls them. A normal click drops the selection.
 
-Pause and play **mark**, they don't apply: they tell you how many you marked and offer to
-apply right there. Nothing changes until you do, and then everything lands in one restart.
+Pause and play mark what you picked and **open the confirmation right away**: it lists what
+will happen and applies everything in one restart. Cancel and the marks stay, ready for the
+check button at the bottom whenever it suits you.
 
 The pause/play button knows which one applies: pause when everything picked is on, play when
 everything is off. Mix the two and it greys out — there is no sensible action to apply to all
@@ -174,7 +175,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 193 tests, no VS Code needed
+npm test      # 195 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

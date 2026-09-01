@@ -1415,24 +1415,52 @@ test('si todavia no hay baldosas, primero se descubren', async () => {
   assert.strictEqual(b.last().type, 'state');
 });
 
-test('marcar avisa de que no ha cambiado nada todavia', async () => {
-  // Sin avisar, el boton se vive como que no hizo nada: marca en silencio y ya.
+test('marcar lleva derecho a la confirmacion de aplicar', async () => {
+  // Marcar y callarse se vive como que el boton no hizo nada.
   const b = switchBoard(['extension.open']);
   await b.refresh();
-  infos.length = 0;
+  avisos.length = 0;
+  warnAnswer = null;                                          // el usuario cancela
   await b.toggleQueuedMany(['c:buildView', 'c:notesView'], 'disable');
-  assert.strictEqual(infos.length, 1, 'marco sin decirlo');
-  assert.ok(/2/.test(infos[0]), 'no dice cuantas marco');
+  assert.strictEqual(avisos.length, 1, 'marco sin preguntar nada');
+  assert.ok(/2/.test(avisos[0]), 'no dice cuantos cambios va a aplicar');
   b.restore();
 });
 
-test('quitar de la lista no avisa de nada', async () => {
+test('cancelar deja lo marcado en su sitio', async () => {
   const b = switchBoard(['extension.open']);
   await b.refresh();
+  warnAnswer = null;
+  await b.toggleQueuedMany(['c:buildView', 'c:notesView'], 'disable');
+  assert.strictEqual(b.queue.length, 2, 'cancelar no deberia perder lo elegido');
+  b.restore();
+});
+
+test('quitar de la lista no pregunta nada', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  warnAnswer = null;
   await b.toggleQueued('c:buildView');
-  infos.length = 0;
+  avisos.length = 0;
   await b.toggleQueued('c:buildView');
-  assert.deepStrictEqual(infos, [], 'desmarcar no necesita anuncio');
+  assert.deepStrictEqual(avisos, [], 'desmarcar no necesita ceremonia');
+  assert.deepStrictEqual(b.queue, []);
+  b.restore();
+});
+
+test('el logo de una apagada se puede seguir cargando', async () => {
+  // Al apagarla desaparece de extensions.all, y su carpeta se quedaba fuera de los
+  // permisos del webview: el archivo no cargaba y el icono caia a la inicial.
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  const antes = b.tiles.find((x) => x.key === 'c:buildView');
+  assert.ok(antes && antes.icon, 'falta la pieza de prueba: esa baldosa deberia traer icono');
+  b.desactivar('acme.build');
+  await b.refresh();
+  const permisos = b.roots().map((u) => String(u.fsPath || u));
+  const suyo = b.tiles.find((x) => x.key === 'c:buildView').icon.uri.fsPath;
+  assert.ok(permisos.some((raiz) => suyo.startsWith(raiz)),
+    'su carpeta no esta permitida: el webview no podria pintar el logo');
   b.restore();
 });
 
