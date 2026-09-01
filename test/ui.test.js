@@ -666,3 +666,13 @@ test('UI: elegir no pone numeritos encima del icono', () => {
   assert.strictEqual(ui.doc.querySelectorAll('#actions .cell .count').length, 0);
   assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 2);
 });
+
+test('UI: solo una regla dibuja sobre el icono, para que no se pisen', () => {
+  // Un elemento tiene un unico ::after. Habia dos reglas peleandoselo —el recuadro de
+  // elegida y una bolita de apagada— y al elegir una apagada se mezclaban: el ancho de
+  // la bolita colapsaba el recuadro en un punto arriba a la izquierda.
+  const css = fs.readFileSync(path.join(__dirname, '..', 'media', 'board.css'), 'utf8');
+  const dibujan = css.match(/\.cell[^{,]*::after/g) || [];
+  assert.deepStrictEqual(dibujan, ['.cell.sel::after'],
+    'dos reglas sobre el mismo ::after se mezclan sin avisar: ' + dibujan.join(', '));
+});

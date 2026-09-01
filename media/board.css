@@ -224,16 +224,6 @@ body {
 /* Extension apagada: no se carga al arrancar VS Code. Se ve, pero en gris. */
 .cell.off img, .cell.off .glyph, .cell.off .mask { opacity: .3; filter: grayscale(1); }
 .cell.off:hover img, .cell.off:hover .glyph, .cell.off:hover .mask { opacity: .6; }
-.cell.off::after {
-  content: '';
-  position: absolute;
-  right: 6px;
-  bottom: 6px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--vscode-descriptionForeground, #888);
-}
 
 /* Cabecera propia: el encabezado que pinta VS Code no admite icono, asi que la marca
    va aqui dentro, que es lo unico que la extension controla. */
