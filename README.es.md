@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-195%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-185%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -71,9 +71,9 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 | **Alt+clic en un icono** | Lo añade o lo quita de la selección |
 | **Alt+clic en una pila** | Elige de una vez todas las que hay debajo |
 | **Arrastrar uno elegido** | Se lleva a todos los elegidos |
-| **Clic derecho en un icono** | Renombrar · desactivar (a la lista) · desinstalar · ocultar |
+| **Clic derecho en un icono** | Renombrar · desactivar · desinstalar · ocultar |
 | **Clic derecho en una carpeta** | Ordenar A–Z · renombrar · eliminar |
-| **Botones del pie** | Nueva carpeta · ordenar todo · ojo (ver ocultos) · pausa/play (apagar o encender lo elegido) · papelera (desinstalar lo elegido) · aplicar la lista · actualizar |
+| **Botones del pie** | Nueva carpeta · ordenar todo · ojo (ver ocultos) · pausa/play (apagar o encender lo elegido) · papelera (desinstalar lo elegido) · actualizar |
 
 ### Elegir varios
 
@@ -82,9 +82,12 @@ uno se los lleva a todos, y los botones del pie actúan sobre el grupo entero: *
 apaga, **play** los enciende, la **papelera** los desinstala. Un clic normal suelta la
 selección.
 
-Pausa y play marcan lo elegido y **abren la confirmación en el acto**: te enumeran qué va a
-pasar y aplican todo en un solo cierre de VS Code. Si cancelas, lo marcado se queda ahí y el
-visto del pie lo aplica cuando te venga bien.
+**Pausa** y **play** son el botón de aplicar: enumeran qué va a pasar, cierran VS Code, lo
+aplican y lo vuelven a abrir. Todo en un solo cierre, por muchas que elijas. Si cancelas, no
+pasa nada.
+
+Pulsar una extensión apagada no la enciende: te dice que está desactivada. Encenderla es
+deliberado — la eliges con Alt+clic y pulsas play.
 
 El botón de pausa/play sabe qué toca: aparece como pausa si todo lo elegido está encendido, y
 como play si todo está apagado. Si mezclas encendidas y apagadas se pone gris — no hay una
@@ -114,13 +117,11 @@ python scripts/gg-extensions.py enable --all
 que lo que se escriba con el editor abierto se pierde. El guion se niega a seguir si lo
 encuentra abierto, y guarda una copia con fecha antes de cada escritura.
 
-Desde el tablero no hace falta escribir nada. Clic derecho en un icono → **Desactivar la
-extensión**: eso no la apaga todavía, la mete en una lista. Marcas todas las que quieras —
-se ven con un recuadro punteado — y entonces pulsas **▶ Aplicar la lista**. Confirmas, y GG
-Groups lanza un proceso aparte que espera a que VS Code se cierre, escribe todos los cambios
-de una vez y lo vuelve a abrir. Un solo cierre para todas, no uno por extensión.
-
-Un clic derecho sobre ese botón vacía la lista sin aplicar nada.
+Desde el tablero no hace falta escribir nada. Eliges los iconos con **Alt+clic** y pulsas
+**pausa**: GG Groups te enumera lo que va a pasar y, al confirmar, lanza un proceso aparte
+que espera a que VS Code se cierre, escribe todos los cambios de una vez y lo vuelve a
+abrir. Un solo cierre para todas, no uno por extensión. Para una sola, clic derecho →
+**Desactivar la extensión**, que hace lo mismo.
 
 Se abre una ventana visible que va contando lo que hace, y **es ella quien vuelve a abrir
 VS Code**: si lo abres tú antes de tiempo, el guion se encuentra el editor otra vez en
@@ -179,7 +180,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 195 pruebas, sin necesidad de VS Code
+npm test      # 185 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

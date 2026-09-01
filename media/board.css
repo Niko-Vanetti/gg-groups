@@ -263,23 +263,14 @@ body {
   #brand span { display: none; }
 }
 
-/* Marcada para el proximo cierre: se ve que va a cambiar, pero todavia no ha cambiado. */
-.cell.queued::after {
+/* Elegida con Alt: solo el recuadro, sin numeritos ni adornos encima del icono. */
+.cell.sel::after {
   content: '';
   position: absolute;
   inset: 2px;
   border: 1px dashed var(--vscode-focusBorder, #2E8FE6);
   border-radius: 5px;
   pointer-events: none;
-}
-.cell.action.apply {
-  color: var(--vscode-focusBorder, #2E8FE6);
-}
-
-/* Elegida con Alt: se nota sin confundirse con "marcada para el proximo cierre". */
-.cell.sel {
-  background: var(--vscode-list-activeSelectionBackground, rgba(46, 143, 230, .28));
-  box-shadow: inset 0 0 0 1px var(--vscode-focusBorder, #2E8FE6);
 }
 
 /* Boton sin nada que hacer: se ve, se entiende por que, y no responde. */

@@ -17,8 +17,6 @@ const STR = {
   unhideAll: 'Recuperar todos los ocultos',
   disable: 'Desactivar la extension', enable: 'Activar la extension', forget: 'Quitar del tablero',
   uninstall: 'Desinstalar la extension',
-  unqueue: 'Quitar de la lista',
-  applyQueue: 'Aplicar la lista', clearQueue: 'Vaciar la lista',
 };
 
 /** Monta el webview igual que lo monta la extension y devuelve utilidades para toquetearlo. */
@@ -411,7 +409,7 @@ test('UI: apagar una extension desde su menu', () => {
   const ui = mount({ loose: [tile('c:a')] });
   ui.cells()[0].oncontextmenu(ui.ev());
   [...ui.doc.getElementById('menu').children][1].onclick();
-  assert.deepStrictEqual(ui.last(), { type: 'queue', key: 'c:a' });
+  assert.deepStrictEqual(ui.last(), { type: 'apply', keys: ['c:a'], action: 'disable' });
 });
 
 test('UI: una apagada se ve en gris y ofrece encenderla o quitarla', () => {
@@ -425,7 +423,7 @@ test('UI: una apagada se ve en gris y ofrece encenderla o quitarla', () => {
   const rows = [...ui.doc.getElementById('menu').children];
   assert.deepStrictEqual(rows.map((r) => r.textContent), [STR.renameTile, STR.enable, STR.forget, STR.hide]);
   rows[1].onclick();
-  assert.deepStrictEqual(ui.last(), { type: 'queue', key: 'c:a' });
+  assert.deepStrictEqual(ui.last(), { type: 'apply', keys: ['c:a'], action: 'enable' });
   c.oncontextmenu(ui.ev());
   [...ui.doc.getElementById('menu').children][2].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'forget', key: 'c:a' });
@@ -543,44 +541,6 @@ test('UI: el interruptor es uno solo, y solo marca', () => {
     'varias formas de apagar la misma extension confunden mas de lo que ayudan');
 });
 
-test('UI: una ya marcada ofrece sacarla de la lista', () => {
-  const ui = mount({ loose: [tile('c:a', { queued: 'disable' })] });
-  ui.cells()[0].oncontextmenu(ui.ev());
-  assert.strictEqual([...ui.doc.getElementById('menu').children][1].textContent, STR.unqueue);
-});
-
-test('UI: la marcada se distingue a simple vista', () => {
-  const ui = mount({ loose: [tile('c:a', { queued: 'disable' }), tile('c:b')] });
-  assert.ok(ui.cells()[0].className.includes('queued'));
-  assert.ok(!ui.cells()[1].className.includes('queued'), 'se marcaron todas');
-});
-
-test('UI: sin nada marcado no aparece el boton de aplicar', () => {
-  const ui = mount({ loose: [tile('c:a')] });
-  const botones = [...ui.doc.getElementById('actions').children].map((b) => b.title);
-  assert.ok(!botones.some((x) => x.startsWith(STR.applyQueue)), 'ofreceria aplicar una lista vacia');
-});
-
-test('UI: con la lista llena, el boton la aplica y lleva su numero', () => {
-  const ui = mount({ loose: [tile('c:a', { queued: 'disable' })], queueCount: 2 });
-  const boton = [...ui.doc.getElementById('actions').children]
-    .find((b) => b.title.startsWith(STR.applyQueue));
-  assert.ok(boton, 'no hay forma de aplicar lo marcado');
-  assert.ok(boton.title.includes('2'), 'no dice cuantos cambios va a aplicar');
-  assert.strictEqual(boton.querySelector('.count').textContent, '2');
-  boton.onclick();
-  assert.deepStrictEqual(ui.last(), { type: 'applyQueue' });
-});
-
-test('UI: el boton de aplicar ofrece vaciar la lista sin aplicarla', () => {
-  const ui = mount({ loose: [tile('c:a', { queued: 'disable' })], queueCount: 1 });
-  const boton = [...ui.doc.getElementById('actions').children]
-    .find((b) => b.title.startsWith(STR.applyQueue));
-  boton.oncontextmenu(ui.ev());
-  [...ui.doc.getElementById('menu').children][0].onclick();
-  assert.deepStrictEqual(ui.last(), { type: 'clearQueue' });
-});
-
 // --- elegir varios con Alt ---
 
 test('UI: Alt+clic elige, y sin Alt abre', () => {
@@ -636,7 +596,7 @@ test('UI: con todo encendido el boton es pausa, y apaga el grupo', () => {
   assert.ok(/debug-pause/.test(boton.querySelector('.mask').style.maskImage));
   assert.ok(boton.title.includes('2'));
   boton.onclick();
-  assert.deepStrictEqual(ui.last(), { type: 'queueMany', keys: ['c:a', 'c:b'], action: 'disable' });
+  assert.deepStrictEqual(ui.last(), { type: 'apply', keys: ['c:a', 'c:b'], action: 'disable' });
 });
 
 test('UI: con todo apagado el boton es play, y enciende el grupo', () => {
@@ -646,7 +606,7 @@ test('UI: con todo apagado el boton es play, y enciende el grupo', () => {
   const boton = ui.actions()[3];
   assert.ok(/play/.test(boton.querySelector('.mask').style.maskImage));
   boton.onclick();
-  assert.deepStrictEqual(ui.last(), { type: 'queueMany', keys: ['c:a', 'c:b'], action: 'enable' });
+  assert.deepStrictEqual(ui.last(), { type: 'apply', keys: ['c:a', 'c:b'], action: 'enable' });
 });
 
 test('UI: mezclando encendidas y apagadas el boton se apaga y explica por que', () => {
@@ -688,4 +648,21 @@ test('UI: al cargar pide el estado en vez de esperarlo', () => {
   // este guion y se pierde: el tablero se quedaba en negro sin decir nada.
   const ui = mount();
   assert.deepStrictEqual(ui.saludo.map((m) => m.type), ['ready']);
+});
+
+test('UI: el pie no ofrece aplicar aparte: eso lo hace pausa o play', () => {
+  const ui = mount({ loose: [tile('c:a')] });
+  assert.strictEqual(ui.actions().length, 6, 'sobra o falta un boton abajo');
+  ui.cells()[0].onclick({ altKey: true });
+  assert.strictEqual(ui.actions().length, 6, 'elegir no deberia sacar botones nuevos');
+});
+
+test('UI: elegir no pone numeritos encima del icono', () => {
+  const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
+  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[1].onclick({ altKey: true });
+  // Lo unico que distingue a una elegida es el recuadro.
+  assert.strictEqual(ui.doc.querySelectorAll('#items .cell .count').length, 0);
+  assert.strictEqual(ui.doc.querySelectorAll('#actions .cell .count').length, 0);
+  assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 2);
 });

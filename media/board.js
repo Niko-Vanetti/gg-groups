@@ -149,9 +149,9 @@
     if (t.renamed) rows.push([S.resetName, () => post({ type: 'resetName', key: t.key })]);
     // El interruptor: los iconos de fabrica y el propio tablero no se apagan.
     if (!t.fixed) {
-      // Un solo interruptor: marca o desmarca. Nada se aplica hasta pulsar el boton de la lista.
-      rows.push([t.queued ? S.unqueue : (t.off ? S.enable : S.disable),
-                 () => post({ type: 'queue', key: t.key })]);
+      // Un solo interruptor, y aplica en el acto: pregunta y cierra VS Code para hacerlo.
+      rows.push([t.off ? S.enable : S.disable,
+                 () => post({ type: 'apply', keys: [t.key], action: t.off ? 'enable' : 'disable' })]);
       // Desactivar es reversible; desinstalar borra del disco. Van por separado.
       if (t.off) rows.push([S.forget, () => post({ type: 'forget', key: t.key })]);
       else rows.push([S.uninstall, () => post({ type: 'uninstall', key: t.key })]);
@@ -168,11 +168,10 @@
     const nextKey = list && list[i + 1] ? (list[i + 1].key || (list[i + 1].tiles || [])[0].key) : null;
     const n = el('div', 'cell' + (active === t.key ? ' active' : '') +
       (inside ? ' inside' : '') + (t.hidden ? ' faded' : '') + (t.off ? ' off' : '') +
-      (t.queued ? ' queued' : '') + (sel.has(t.key) ? ' sel' : ''));
+      (sel.has(t.key) ? ' sel' : ''));
     // Ni el bloque nativo ni el propio tablero: ninguna accion de grupo les aplica.
     const elegible = !locked && !t.fixed;
-    n.title = t.label + (t.owner && t.owner !== t.label ? ' — ' + t.owner : '') +
-      (t.queued ? ' · ' + (t.queued === 'disable' ? S.disable : S.enable) : '');
+    n.title = t.label + (t.owner && t.owner !== t.label ? ' — ' + t.owner : '');
     n.dataset.key = t.key;
     n.appendChild(art(t));
 
@@ -326,25 +325,16 @@
     // Pausa o play segun lo seleccionado; gris cuando no hay nada que hacer con ello.
     const s2 = selState();
     const puede = s2.count > 0 && s2.ready;
-    const interruptor = btn(s2.action === 'enable' ? 'play' : 'debug-pause',
+    btn(s2.action === 'enable' ? 'play' : 'debug-pause',
       !s2.count ? S.pickFirst : (s2.mixed ? S.mixedPick
         : (s2.action === 'enable' ? S.enableSel : S.disableSel) + ' (' + s2.count + ')'),
-      puede ? () => post({ type: 'queueMany', keys: [...sel], action: s2.action }) : null,
+      puede ? () => post({ type: 'apply', keys: [...sel], action: s2.action }) : null,
       puede ? '' : ' disabled');
-    if (s2.count) el('span', 'count', interruptor).textContent = s2.count;
 
     btn('trash', s2.count ? S.uninstallSel + ' (' + s2.count + ')' : S.pickFirst,
       s2.count ? () => post({ type: 'uninstallMany', keys: [...sel] }) : null,
       s2.count ? '' : ' disabled');
 
-    // El boton de aplicar solo aparece cuando hay algo marcado: si no, no hay que aplicar.
-    const marcadas = state.queueCount || 0;
-    if (marcadas) {
-      const aplicar = btn('check-all', S.applyQueue + ' (' + marcadas + ')',
-        () => post({ type: 'applyQueue' }), ' apply on');
-      el('span', 'count', aplicar).textContent = marcadas;
-      aplicar.oncontextmenu = (e) => menu(e, [[S.clearQueue, () => post({ type: 'clearQueue' })]]);
-    }
     btn('refresh', S.refresh, () => post({ type: 'refresh' }));
   }
 

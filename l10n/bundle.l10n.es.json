@@ -41,9 +41,6 @@
   "Python is needed for this. Copying the command instead.": "Para esto hace falta Python. Se copia la orden para hacerlo a mano.",
   "Turn extension off": "Desactivar la extensión",
   "Turn extension on": "Activar la extensión",
-  "Take it off the list": "Quitar de la lista",
-  "Apply the list (closes and reopens VS Code)": "Aplicar la lista (cierra y reabre VS Code)",
-  "Empty the list": "Vaciar la lista",
   "Apply {0} changes? VS Code closes, applies them and opens again.": "¿Aplicar {0} cambios? VS Code se cierra, los aplica y se vuelve a abrir.",
   "Could not apply the list: {0}": "No se pudo aplicar la lista: {0}",
   "Could not open \"{0}\": {1}": "No se pudo abrir \"{0}\": {1}",
@@ -54,5 +51,6 @@
   "Some are on and some are off: pick only one kind": "Hay activas y desactivadas mezcladas: elige de un solo tipo",
   "Uninstall the selected ones": "Desinstalar los seleccionados",
   "Uninstall {0} extensions? They are deleted from disk.": "¿Desinstalar {0} extensiones? Se borran del disco.",
-  "Drag one icon onto another to group them. Alt+click to pick several.": "Arrastra un icono sobre otro para agruparlos. Alt+clic para elegir varios."
+  "Drag one icon onto another to group them. Alt+click to pick several.": "Arrastra un icono sobre otro para agruparlos. Alt+clic para elegir varios.",
+  "\"{0}\" is turned off. Pick it with Alt+click and press play to turn it on.": "\"{0}\" está desactivada. Elígela con Alt+clic y pulsa play para activarla."
 }

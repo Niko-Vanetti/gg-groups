@@ -13,7 +13,7 @@ const KEY_LOCALE = 'viewGroups.locale';
 // Catalogo de lo que se ha visto alguna vez, para reconocer lo que ya no esta cargado.
 const KEY_SEEN = 'viewGroups.seen';
 const KEY_OFF = 'viewGroups.off';
-const KEY_QUEUE = 'viewGroups.queue';                   // lo marcado, a la espera de aplicarse
+const KEY_QUEUE = 'viewGroups.queue';                   // solo para limpiar el estado de versiones viejas
 const KEY_REMOVED = 'viewGroups.removed';               // solo para limpiar el estado de versiones viejas
 /**
  * Desactivar una extension NO se puede hacer por codigo: no hay API, y los comandos de
@@ -513,6 +513,8 @@ class Board {
       });
     }
     await this.ctx.globalState.update(KEY_SEEN, [...catalogo.values()]);
+    // Version 1.11 y anteriores guardaban una lista a la espera; ya no existe.
+    if (this.ctx.globalState.get(KEY_QUEUE)) await this.ctx.globalState.update(KEY_QUEUE, undefined);
     if (this.ctx.globalState.get(KEY_OFF)) {
       // Version anterior: marcaba apagadas por intencion, no por hecho. Se descarta.
       await this.ctx.globalState.update(KEY_OFF, undefined);
@@ -578,15 +580,14 @@ class Board {
   }
 
   /**
-   * Respaldo para cuando no hay Python: deja en el portapapeles la orden que aplica la
-   * lista, para ejecutarla a mano con VS Code cerrado.
+   * Respaldo para cuando no hay Python: deja en el portapapeles la orden equivalente,
+   * para ejecutarla a mano con VS Code cerrado.
    */
-  async copyScript() {
-    const cola = this.queue;
-    if (!cola.length) return;
+  async copyScript(cambios) {
+    if (!cambios.length) return;
     const guion = vscode.Uri.joinPath(this.ctx.extensionUri, 'scripts', 'gg-extensions.py').fsPath;
     const linea = (accion) => {
-      const ids = cola.filter((o) => o.action === accion).map((o) => o.ext);
+      const ids = cambios.filter((o) => o.action === accion).map((o) => o.ext);
       return ids.length ? `python "${guion}" ${accion} ${ids.join(' ')}` : null;
     };
     const orden = [linea('disable'), linea('enable')].filter(Boolean).join('\n');
@@ -599,58 +600,70 @@ class Board {
   }
 
   /**
-   * Lo marcado y todavia sin aplicar. Se guarda con el identificador dentro porque una
-   * baldosa puede desaparecer entre marcarla y aplicar, y aun asi el cambio debe llegar.
+   * Lo que hay que cambiar de verdad, a partir de lo que se pidio. Se descartan los que
+   * ya estan como se quiere y los que no se pueden tocar: pedir apagar algo ya apagado
+   * cerraria el editor para no hacer nada.
    */
-  get queue() {
-    const raw = this.ctx.globalState.get(KEY_QUEUE, []);
-    return Array.isArray(raw)
-      ? raw.filter((o) => o && typeof o.key === 'string' && typeof o.ext === 'string'
-                       && (o.action === 'disable' || o.action === 'enable'))
-      : [];
-  }
-
-  /** Marca o desmarca una baldosa. El cambio no toca nada todavia: solo entra en la lista. */
-  async toggleQueued(key) {
-    const cola = this.queue;
-    const fuera = cola.filter((o) => o.key !== key);
-    if (fuera.length !== cola.length) {
-      await this.ctx.globalState.update(KEY_QUEUE, fuera);
-      return this.render();
+  changesFor(keys, action) {
+    const fuera = [];
+    const vistos = new Set();
+    for (const key of Array.isArray(keys) ? keys : []) {
+      const tile = this.tiles.find((x) => x.key === key);
+      if (!tile || tile.native || !tile.ext || tile.ext === 'vscode') continue;
+      if (action === 'disable' ? tile.off : !tile.off) continue;
+      if (vistos.has(tile.ext)) continue;         // una extension con dos iconos, un cambio
+      vistos.add(tile.ext);
+      fuera.push({ key, ext: tile.ext, action, label: this.nameOf(tile) });
     }
-    const tile = this.tiles.find((x) => x.key === key);
-    if (!tile || tile.native || !tile.ext || tile.ext === 'vscode') return;
-    // Lo que ahora esta apagado se marca para encender, y al reves.
-    await this.ctx.globalState.update(KEY_QUEUE,
-      [...cola, { key, ext: tile.ext, action: tile.off ? 'enable' : 'disable' }]);
-    this.render();
-    // Marcar y quedarse callado se vive como que el boton no hizo nada: se pregunta ya.
-    // Si se cancela, lo marcado sigue ahi y el visto del pie lo aplica cuando toque.
-    await this.applyQueue();
+    return fuera;
   }
 
   /**
-   * Marca de golpe todo lo seleccionado. Se piden apagar o encender explicitamente en vez
-   * de alternar uno por uno: con varios iconos, alternar cada cual por su cuenta dejaria
-   * la mitad marcada al reves de lo que se queria.
+   * Apaga o enciende lo pedido, del tiron. Un solo cierre para todos los cambios, en vez
+   * de uno por extension: se lanza un proceso aparte que espera a que VS Code se cierre,
+   * escribe y lo vuelve a abrir. Recargar la ventana no valdria — el proceso principal de
+   * VS Code sigue vivo con esa base en memoria y la vuelca al salir, pisando lo escrito.
    */
-  async toggleQueuedMany(keys, action) {
-    if (!Array.isArray(keys) || !keys.length) return;
-    const cola = this.queue;
-    const dentro = new Set(cola.map((o) => o.key));
-    const nuevas = [];
-    for (const key of keys) {
-      if (dentro.has(key)) continue;
-      const tile = this.tiles.find((x) => x.key === key);
-      if (!tile || tile.native || !tile.ext || tile.ext === 'vscode') continue;
-      // Pedir apagar lo que ya esta apagado no cambia nada: se deja fuera.
-      if (action === 'disable' ? tile.off : !tile.off) continue;
-      nuevas.push({ key, ext: tile.ext, action });
+  async applyChanges(keys, action) {
+    const cambios = this.changesFor(keys, action);
+    if (!cambios.length) return;
+
+    const python = await findPython();
+    if (!python) {
+      vscode.window.showWarningMessage(t('Python is needed for this. Copying the command instead.'));
+      return this.copyScript(cambios);
     }
-    if (!nuevas.length) return;
-    await this.ctx.globalState.update(KEY_QUEUE, [...cola, ...nuevas]);
-    this.render();
-    await this.applyQueue();
+
+    const si = t('Close and apply');
+    const detalle = cambios.map((o) => (o.action === 'disable' ? '- ' : '+ ') + o.label).join('\n');
+    const pick = await vscode.window.showWarningMessage(
+      t('Apply {0} changes? VS Code closes, applies them and opens again.', cambios.length),
+      { modal: true, detail: detalle + '\n\n' + t('A window will open. Do not open VS Code yourself: it opens it for you when it finishes.') },
+      si
+    );
+    if (pick !== si) return;
+
+    const plan = restartCommand({
+      dir: vscode.Uri.joinPath(this.ctx.extensionUri, 'scripts').fsPath.replace(/\\/g, '/'),
+      python,
+      disable: cambios.filter((o) => o.action === 'disable').map((o) => o.ext),
+      enable: cambios.filter((o) => o.action === 'enable').map((o) => o.ext),
+      codeExe: process.execPath,
+      log: this.logPath(),
+    });
+    try {
+      await vscode.workspace.fs.createDirectory(this.ctx.globalStorageUri);
+    } catch { /* si ya existe, mejor */ }
+    try {
+      const hijo = spawn(plan.exe, plan.args, { detached: true, stdio: 'ignore', windowsHide: false });
+      hijo.unref();
+    } catch (e) {
+      vscode.window.showErrorMessage(t('Could not apply the list: {0}', (e && e.message) || String(e)));
+      return;
+    }
+    // Un instante para que el proceso quede en marcha antes de cerrar el editor.
+    await new Promise((r) => setTimeout(r, 600));
+    await vscode.commands.executeCommand('workbench.action.quit');
   }
 
   /** Desinstala varias de una vez, con una sola confirmacion que las enumera todas. */
@@ -684,59 +697,6 @@ class Board {
     await this.refresh();
   }
 
-  async clearQueue() {
-    await this.ctx.globalState.update(KEY_QUEUE, []);
-    this.render();
-  }
-
-  /**
-   * Aplica toda la lista de una vez. Un solo cierre para todos los cambios, en vez de uno
-   * por extension: se lanza un proceso aparte que espera a que VS Code se cierre, escribe
-   * y lo vuelve a abrir. Recargar la ventana no valdria — el proceso principal de VS Code
-   * sigue vivo con esa base en memoria y la vuelca al salir, pisando lo que se escriba.
-   */
-  async applyQueue() {
-    const cola = this.queue;
-    if (!cola.length) return;
-
-    const python = await findPython();
-    if (!python) {
-      vscode.window.showWarningMessage(t('Python is needed for this. Copying the command instead.'));
-      return this.copyScript();
-    }
-
-    const apagar = cola.filter((o) => o.action === 'disable').map((o) => o.ext);
-    const encender = cola.filter((o) => o.action === 'enable').map((o) => o.ext);
-    const si = t('Close and apply');
-    const pick = await vscode.window.showWarningMessage(
-      t('Apply {0} changes? VS Code closes, applies them and opens again.', cola.length),
-      { modal: true, detail: this.queueDetail(cola) + '\n\n' + t('A window will open. Do not open VS Code yourself: it opens it for you when it finishes.') },
-      si
-    );
-    if (pick !== si) return;
-
-    const plan = restartCommand({
-      dir: vscode.Uri.joinPath(this.ctx.extensionUri, 'scripts').fsPath.replace(/\\/g, '/'),
-      python, disable: apagar, enable: encender, codeExe: process.execPath,
-      log: this.logPath(),
-    });
-    try {
-      await vscode.workspace.fs.createDirectory(this.ctx.globalStorageUri);
-    } catch { /* si ya existe, mejor */ }
-    try {
-      const hijo = spawn(plan.exe, plan.args, { detached: true, stdio: 'ignore', windowsHide: false });
-      hijo.unref();
-    } catch (e) {
-      vscode.window.showErrorMessage(t('Could not apply the list: {0}', (e && e.message) || String(e)));
-      return;
-    }
-    // La lista se vacia ya: al volver, esos cambios estaran hechos.
-    await this.ctx.globalState.update(KEY_QUEUE, []);
-    // Un instante para que el proceso quede en marcha antes de cerrar el editor.
-    await new Promise((r) => setTimeout(r, 600));
-    await vscode.commands.executeCommand('workbench.action.quit');
-  }
-
   /** Donde el proceso de fuera deja constancia de lo que hizo. */
   logPath() {
     return vscode.Uri.joinPath(this.ctx.globalStorageUri, 'gg-apply.log').fsPath.replace(/\\/g, '/');
@@ -753,17 +713,6 @@ class Board {
     } catch {
       return null;
     }
-  }
-
-  /** El resumen que se lee en la confirmacion, para no aplicar nada a ciegas. */
-  queueDetail(cola) {
-    const nombre = (o) => {
-      const tile = this.tiles.find((x) => x.key === o.key);
-      return tile ? this.nameOf(tile) : o.ext;
-    };
-    return cola
-      .map((o) => (o.action === 'disable' ? '- ' : '+ ') + nombre(o))
-      .join('\n');
   }
 
   /** Deja de recordar una extension apagada: su icono desaparece del tablero. */
@@ -823,7 +772,6 @@ class Board {
     say('');
     say('python: ' + (await findPython() || 'no encontrado (habria que aplicar la lista a mano)'));
     say('apagadas ahora mismo: ' + (this.off.map((o) => o.label).join(', ') || 'ninguna'));
-    say('en la lista, sin aplicar: ' + (this.queue.map((o) => o.ext).join(', ') || 'nada'));
     // El intento anterior ocurre fuera de VS Code: sin esto, un fallo alli no se ve desde aqui.
     const ultimo = await this.lastRunReport();
     say('ultimo intento de aplicar: ' + (ultimo ? '\n' + ultimo : 'ninguno todavia'));
@@ -975,7 +923,6 @@ class Board {
     const byKey = new Map(this.visible().map((x) => [x.key, x]));
     const hidden = this.hidden;
     const names = this.names;
-    const marcadas = new Map(this.queue.map((o) => [o.key, o.action]));
     const pack = (x) => ({
       key: x.key, label: this.nameOf(x), owner: x.owner,
       icon: x.icon ? String(w.asWebviewUri(x.icon.uri)) : null,
@@ -984,13 +931,11 @@ class Board {
       fixed: !!x.native || x.ext === 'vscode',
       hidden: hidden.has(x.key),
       renamed: typeof names[x.key] === 'string',
-      queued: marcadas.get(x.key) || null,
     });
     w.postMessage({
       type: 'state',
       showHidden: this.showHidden,
       hiddenCount: hidden.size,
-      queueCount: this.queue.length,
       folders: folders.map((f) => ({
         name: f.name,
         locked: !!f.locked,
@@ -1006,8 +951,13 @@ class Board {
   async open(key) {
     const tile = this.tiles.find((x) => x.key === key);
     if (!tile) return;
-    // Apagada: pulsarla la marca para volver a encenderla en el proximo cierre.
-    if (tile.off) return this.toggleQueued(key);
+    // Apagada: no hay panel que abrir. Se dice, y encenderla es una accion aparte y
+    // deliberada — no algo que ocurra por pulsar donde antes se abria otra cosa.
+    if (tile.off) {
+      vscode.window.showInformationMessage(
+        t('"{0}" is turned off. Pick it with Alt+click and press play to turn it on.', this.nameOf(tile)));
+      return;
+    }
     let timer;
     try {
       await Promise.race([
@@ -1156,16 +1106,10 @@ class Board {
         return this.setHidden(m.keys, true);
       case 'unhide':
         return this.setHidden(m.keys, false);
-      case 'queue':
-        return this.toggleQueued(m.key);
-      case 'queueMany':
-        return this.toggleQueuedMany(m.keys, m.action === 'enable' ? 'enable' : 'disable');
+      case 'apply':
+        return this.applyChanges(m.keys, m.action === 'enable' ? 'enable' : 'disable');
       case 'uninstallMany':
         return this.uninstallMany(m.keys);
-      case 'applyQueue':
-        return this.applyQueue();
-      case 'clearQueue':
-        return this.clearQueue();
       case 'forget':
         return this.forget(m.key);
       case 'uninstall':
@@ -1214,10 +1158,7 @@ class Board {
       sort: t('Sort A-Z'), rename: t('Rename folder'), renameTile: t('Rename icon'),
       resetName: t('Use original name'), remove: t('Remove from folder'), del: t('Delete folder'),
       disable: t('Turn extension off'), enable: t('Turn extension on'),
-      unqueue: t('Take it off the list'),
       uninstall: t('Uninstall extension'), forget: t('Remove from the board'),
-      applyQueue: t('Apply the list (closes and reopens VS Code)'),
-      clearQueue: t('Empty the list'),
       hide: t('Hide icon'), unhide: t('Show icon'), showHiddenOn: t('Show hidden icons'),
       showHiddenOff: t('Stop showing hidden icons'), unhideAll: t('Show all hidden icons'),
       pickFirst: t('Alt+click icons to pick several'),

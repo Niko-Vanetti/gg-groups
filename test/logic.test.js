@@ -798,75 +798,6 @@ function switchBoard(comandos, initial) {
   return b;
 }
 
-test('marcar una extension la mete en la lista, con su identificador', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  await b.toggleQueued('c:buildView');
-  assert.deepStrictEqual(b.queue, [{ key: 'c:buildView', ext: 'acme.build', action: 'disable' }]);
-  b.restore();
-});
-
-test('volver a marcarla la saca de la lista', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  await b.toggleQueued('c:buildView');
-  await b.toggleQueued('c:buildView');
-  assert.deepStrictEqual(b.queue, []);
-  b.restore();
-});
-
-test('marcar no apaga nada todavia: hasta aplicar, sigue cargandose', async () => {
-  // El fallo de las versiones 0.23-0.26 era justo este: pintar en gris por intencion.
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  await b.toggleQueued('c:buildView');
-  await b.refresh();
-  const tile = b.tiles.find((x) => x.key === 'c:buildView');
-  assert.ok(!tile.off, 'seguia cargandose y aun asi se pintaba apagada');
-  assert.deepStrictEqual(b.off, []);
-  assert.deepStrictEqual(b.ejecutados, [], 'no deberia ejecutar nada al marcar');
-  b.restore();
-});
-
-test('una apagada se marca para encender, no para apagar', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  b.desactivar('acme.build');
-  await b.refresh();
-  await b.toggleQueued('c:buildView');
-  assert.strictEqual(b.queue[0].action, 'enable');
-  b.restore();
-});
-
-test('vaciar la lista la deja limpia sin tocar ninguna extension', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  await b.toggleQueued('c:buildView');
-  await b.toggleQueued('c:notesView');
-  await b.clearQueue();
-  assert.deepStrictEqual(b.queue, []);
-  assert.deepStrictEqual(b.ejecutados, []);
-  b.restore();
-});
-
-test('la lista sobrevive a un refresco: se marca ahora y se aplica luego', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  await b.toggleQueued('c:buildView');
-  await b.refresh();
-  assert.strictEqual(b.queue.length, 1);
-  assert.strictEqual(b.last().queueCount, 1, 'el boton no sabria que hay algo pendiente');
-  b.restore();
-});
-
-test('una entrada corrompida no llega a la orden que se ejecuta', async () => {
-  const b = switchBoard(['extension.open'],
-    { 'viewGroups.queue': ['basura', { key: 1 }, { key: 'a', ext: 'b', action: 'boom' }] });
-  await b.refresh();
-  assert.deepStrictEqual(b.queue, []);
-  b.restore();
-});
-
 test('una extension que VS Code deja de cargar aparece apagada', async () => {
   const b = switchBoard(['extension.open']);
   await b.refresh();                                          // queda en el catalogo
@@ -903,18 +834,6 @@ test('al volver a cargarse recupera su sitio y deja de estar en gris', async () 
   b.restore();
 });
 
-test('pulsar una apagada la marca para encenderla', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  b.desactivar('acme.build');
-  await b.refresh();
-  b.ejecutados.length = 0;
-  await b.open('c:buildView');
-  assert.strictEqual(b.queue[0].action, 'enable');
-  assert.deepStrictEqual(b.ejecutados, [], 'no deberia intentar abrir el panel de una apagada');
-  b.restore();
-});
-
 test('se puede quitar del tablero una apagada que ya no interesa', async () => {
   const b = switchBoard(['extension.open']);
   await b.refresh();
@@ -923,14 +842,6 @@ test('se puede quitar del tablero una apagada que ya no interesa', async () => {
   await b.forget('c:buildView');
   assert.ok(!b.tiles.some((x) => x.key === 'c:buildView'), 'seguia ahi');
   assert.deepStrictEqual(b.off, []);
-  b.restore();
-});
-
-test('ni los iconos de fabrica ni el propio tablero entran en la lista', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  for (const k of [...NATIVE_KEYS, 'k:chat', 'c:viewGroups']) await b.toggleQueued(k);
-  assert.deepStrictEqual(b.queue, [], 'apagar el propio tablero lo dejaria sin forma de volver');
   b.restore();
 });
 
@@ -961,14 +872,6 @@ test('el webview recibe la marca de apagada', async () => {
   await b.refresh();
   const pintadas = b.last().loose.concat(b.last().folders.flatMap((f) => f.tiles));
   assert.strictEqual(pintadas.find((x) => x.key === 'c:buildView').off, true);
-  b.restore();
-});
-
-test('marcar una baldosa que ya no existe no rompe nada', async () => {
-  const b = switchBoard([]);                                  // ningun comando responde
-  await b.refresh();
-  await b.toggleQueued('c:noExiste');
-  assert.deepStrictEqual(b.queue, []);
   b.restore();
 });
 
@@ -1076,7 +979,7 @@ test('la comprobacion escribe un informe legible', async () => {
   const lineas = [];
   await b.selfTest({ appendLine: (l) => lineas.push(l) });
   const texto = lineas.join('\n');
-  for (const trozo of ['idioma:', 'baldosas:', 'comandos:', 'python:', 'en la lista, sin aplicar:',
+  for (const trozo of ['idioma:', 'baldosas:', 'comandos:', 'python:',
     'ultimo intento de aplicar:', 'carpetas:']) {
     assert.ok(texto.includes(trozo), 'falta la seccion ' + trozo);
   }
@@ -1313,64 +1216,7 @@ test('el guion de espera no escribe si VS Code sigue abierto', () => {
   assert.ok(/TimeoutSeconds/.test(ps), 'esperaria para siempre si nadie cierra');
 });
 
-test('sin Python no se finge: se cae a copiar la orden de toda la lista', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  await b.toggleQueued('c:buildView');
-  await b.toggleQueued('c:notesView');
-  const copiado = [];
-  const realEnv = stub.env;
-  stub.env = { language: 'en', clipboard: { writeText: async (x) => copiado.push(x) } };
-  await b.copyScript();
-  assert.ok(copiado[0], 'no copio nada');
-  assert.ok(copiado[0].includes('acme.build') && copiado[0].includes('acme.notes'),
-    'la orden copiada dejaria fuera parte de la lista');
-  assert.ok(copiado[0].includes('disable'));
-  stub.env = realEnv;
-  b.restore();
-});
-
 // --- acciones sobre varios iconos a la vez ---
-
-test('el interruptor de grupo marca todo lo seleccionado de una vez', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  await b.toggleQueuedMany(['c:buildView', 'c:notesView'], 'disable');
-  assert.deepStrictEqual(b.queue.map((o) => o.ext).sort(), ['acme.build', 'acme.notes']);
-  assert.ok(b.queue.every((o) => o.action === 'disable'));
-  b.restore();
-});
-
-test('marcar un grupo no alterna: lo pedido es lo que se aplica a todos', async () => {
-  // Alternar uno por uno dejaria la mitad marcada al reves de lo que se pidio.
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  await b.toggleQueued('c:buildView');
-  await b.toggleQueuedMany(['c:buildView', 'c:notesView'], 'disable');
-  assert.strictEqual(b.queue.length, 2, 'la ya marcada se desmarco sola');
-  assert.ok(b.queue.every((o) => o.action === 'disable'));
-  b.restore();
-});
-
-test('pedir apagar lo ya apagado no mete nada en la lista', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  b.desactivar('acme.build');
-  await b.refresh();
-  await b.toggleQueuedMany(['c:buildView'], 'disable');
-  assert.deepStrictEqual(b.queue, []);
-  await b.toggleQueuedMany(['c:buildView'], 'enable');
-  assert.strictEqual(b.queue.length, 1);
-  b.restore();
-});
-
-test('el grupo no arrastra ni los nativos ni el propio tablero', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  await b.toggleQueuedMany([...NATIVE_KEYS, 'c:viewGroups', 'c:buildView'], 'disable');
-  assert.deepStrictEqual(b.queue.map((o) => o.ext), ['acme.build']);
-  b.restore();
-});
 
 test('desinstalar un grupo pide una sola confirmacion y sin ella no toca nada', async () => {
   const b = switchBoard(['workbench.extensions.uninstallExtension']);
@@ -1397,15 +1243,6 @@ test('al confirmar, desinstala cada extension una sola vez', async () => {
   b.restore();
 });
 
-test('al pedir el webview su estado, se le manda', async () => {
-  const b = makeBoard();
-  await b.refresh();
-  b.posted.length = 0;
-  await b.onMessage({ type: 'ready' });
-  assert.strictEqual(b.last().type, 'state');
-  assert.ok(b.last().folders.length, 'le llegaria un tablero vacio');
-});
-
 test('si todavia no hay baldosas, primero se descubren', async () => {
   const b = makeBoard();
   b.posted.length = 0;
@@ -1413,39 +1250,6 @@ test('si todavia no hay baldosas, primero se descubren', async () => {
   await b.onMessage({ type: 'ready' });
   assert.ok(b.tiles.length, 'se quedaria en negro hasta el primer refresco');
   assert.strictEqual(b.last().type, 'state');
-});
-
-test('marcar lleva derecho a la confirmacion de aplicar', async () => {
-  // Marcar y callarse se vive como que el boton no hizo nada.
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  avisos.length = 0;
-  warnAnswer = null;                                          // el usuario cancela
-  await b.toggleQueuedMany(['c:buildView', 'c:notesView'], 'disable');
-  assert.strictEqual(avisos.length, 1, 'marco sin preguntar nada');
-  assert.ok(/2/.test(avisos[0]), 'no dice cuantos cambios va a aplicar');
-  b.restore();
-});
-
-test('cancelar deja lo marcado en su sitio', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  warnAnswer = null;
-  await b.toggleQueuedMany(['c:buildView', 'c:notesView'], 'disable');
-  assert.strictEqual(b.queue.length, 2, 'cancelar no deberia perder lo elegido');
-  b.restore();
-});
-
-test('quitar de la lista no pregunta nada', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  warnAnswer = null;
-  await b.toggleQueued('c:buildView');
-  avisos.length = 0;
-  await b.toggleQueued('c:buildView');
-  assert.deepStrictEqual(avisos, [], 'desmarcar no necesita ceremonia');
-  assert.deepStrictEqual(b.queue, []);
-  b.restore();
 });
 
 test('el logo de una apagada se puede seguir cargando', async () => {
@@ -1471,4 +1275,131 @@ test('el guion desactiva tambien las que trae VS Code de fabrica', () => {
   assert.ok(/integrada en VS Code/.test(py), 'no contempla las integradas');
   assert.ok(/nueva\.append\(\{'id': i\}\)/.test(py), 'no las escribe solo con el id');
   assert.ok(!/no instalada, se omite/.test(py), 'sigue saltandoselas');
+});
+
+// --- apagar y encender: se pide y se aplica, sin lista intermedia ---
+
+test('lo pedido se convierte en cambios, con su identificador', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  const cambios = b.changesFor(['c:buildView', 'c:notesView'], 'disable');
+  assert.deepStrictEqual(cambios.map((o) => o.ext).sort(), ['acme.build', 'acme.notes']);
+  assert.ok(cambios.every((o) => o.action === 'disable'));
+  b.restore();
+});
+
+test('apagar lo ya apagado no es un cambio: cerraria el editor para nada', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.build');
+  await b.refresh();
+  assert.deepStrictEqual(b.changesFor(['c:buildView'], 'disable'), []);
+  assert.strictEqual(b.changesFor(['c:buildView'], 'enable').length, 1);
+  b.restore();
+});
+
+test('ni los iconos de fabrica ni el propio tablero se pueden apagar', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  const cambios = b.changesFor([...NATIVE_KEYS, 'c:viewGroups', 'c:buildView'], 'disable');
+  assert.deepStrictEqual(cambios.map((o) => o.ext), ['acme.build'],
+    'apagar el propio tablero lo dejaria sin forma de volver');
+  b.restore();
+});
+
+test('una extension con dos iconos cuenta como un solo cambio', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  const suyas = b.tiles.filter((x) => x.ext === 'acme.tasks').map((x) => x.key);
+  assert.ok(suyas.length >= 2, 'falta la pieza de prueba');
+  assert.strictEqual(b.changesFor(suyas, 'disable').length, 1);
+  b.restore();
+});
+
+test('una baldosa que ya no existe no rompe nada', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  assert.deepStrictEqual(b.changesFor(['c:noExiste'], 'disable'), []);
+  assert.deepStrictEqual(b.changesFor(null, 'disable'), []);
+  b.restore();
+});
+
+test('sin cambios que hacer no se pregunta ni se cierra nada', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.build');
+  await b.refresh();
+  avisos.length = 0;
+  await b.applyChanges(['c:buildView'], 'disable');           // ya esta apagada
+  assert.deepStrictEqual(avisos, [], 'pregunto por algo que no cambia nada');
+  b.restore();
+});
+
+test('aplicar pregunta antes, enumerando lo que va a pasar', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  avisos.length = 0;
+  warnAnswer = null;                                          // el usuario cancela
+  await b.applyChanges(['c:buildView', 'c:notesView'], 'disable');
+  assert.strictEqual(avisos.length, 1, 'cerro el editor sin preguntar');
+  assert.ok(/2/.test(avisos[0]), 'no dice cuantos cambios va a aplicar');
+  assert.deepStrictEqual(b.ejecutados, [], 'cancelar no debe cerrar VS Code');
+  b.restore();
+});
+
+test('pulsar una apagada lo dice, y no la enciende por su cuenta', async () => {
+  // Encender es deliberado: no puede pasar por pulsar donde antes se abria un panel.
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.build');
+  await b.refresh();
+  b.ejecutados.length = 0;
+  infos.length = 0;
+  await b.open('c:buildView');
+  assert.strictEqual(infos.length, 1, 'no dijo que estaba desactivada');
+  assert.ok(/Build/.test(infos[0]), 'no dice cual');
+  assert.deepStrictEqual(b.ejecutados, [], 'intento hacer algo con ella');
+  b.restore();
+});
+
+test('el webview recibe la marca de apagada', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.build');
+  await b.refresh();
+  const pintadas = b.last().loose.concat(b.last().folders.flatMap((f) => f.tiles));
+  assert.strictEqual(pintadas.find((x) => x.key === 'c:buildView').off, true);
+  b.restore();
+});
+
+test('la lista guardada por las versiones viejas se descarta al arrancar', async () => {
+  const b = switchBoard(['extension.open'],
+    { 'viewGroups.queue': [{ key: 'c:buildView', ext: 'acme.build', action: 'disable' }] });
+  await b.refresh();
+  assert.strictEqual(b.store.get('viewGroups.queue'), undefined, 'no se limpio');
+  b.restore();
+});
+
+test('sin Python no se finge: se cae a copiar la orden', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  const copiado = [];
+  const realEnv = stub.env;
+  stub.env = { language: 'en', clipboard: { writeText: async (x) => copiado.push(x) } };
+  await b.copyScript(b.changesFor(['c:buildView', 'c:notesView'], 'disable'));
+  assert.ok(copiado[0], 'no copio nada');
+  assert.ok(copiado[0].includes('acme.build') && copiado[0].includes('acme.notes'),
+    'la orden copiada dejaria fuera parte de lo pedido');
+  assert.ok(copiado[0].includes('disable'));
+  stub.env = realEnv;
+  b.restore();
+});
+
+test('al pedir el webview su estado, se le manda', async () => {
+  const b = makeBoard();
+  await b.refresh();
+  b.posted.length = 0;
+  await b.onMessage({ type: 'ready' });
+  assert.strictEqual(b.last().type, 'state');
+  assert.ok(b.last().folders.length, 'le llegaria un tablero vacio');
 });

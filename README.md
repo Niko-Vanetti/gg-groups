@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-195%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-185%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -71,9 +71,9 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 | **Alt+click an icon** | Adds or removes it from the selection |
 | **Alt+click a stack** | Picks every icon under it at once |
 | **Drag a picked one** | Takes every picked icon along |
-| **Right-click an icon** | Rename · turn off (onto the list) · uninstall · hide |
+| **Right-click an icon** | Rename · turn off · uninstall · hide |
 | **Right-click a folder** | Sort A–Z · rename · delete |
-| **Bottom buttons** | New folder · sort all · eye (show hidden) · pause/play (turn the picked ones off or on) · trash (uninstall the picked ones) · apply the list · refresh |
+| **Bottom buttons** | New folder · sort all · eye (show hidden) · pause/play (turn the picked ones off or on) · trash (uninstall the picked ones) · refresh |
 
 ### Picking several
 
@@ -81,9 +81,11 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 them all, and the bottom buttons act on the whole group: **pause** turns them off, **play**
 turns them on, the **trash** uninstalls them. A normal click drops the selection.
 
-Pause and play mark what you picked and **open the confirmation right away**: it lists what
-will happen and applies everything in one restart. Cancel and the marks stay, ready for the
-check button at the bottom whenever it suits you.
+**Pause** and **play** are the apply button: they list what will happen, close VS Code, apply
+it and open it again. One restart no matter how many you picked. Cancel and nothing happens.
+
+Clicking a disabled extension doesn't switch it back on — it tells you it's off. Turning it
+on is deliberate: pick it with Alt+click and press play.
 
 The pause/play button knows which one applies: pause when everything picked is on, play when
 everything is off. Mix the two and it greys out — there is no sensible action to apply to all
@@ -113,13 +115,11 @@ python scripts/gg-extensions.py enable --all
 anything written while it runs is lost. The script refuses to continue if it finds VS Code
 running, and takes a timestamped backup before every write.
 
-From the board you don't have to type any of that. Right-click an icon → **Turn extension
-off**: that doesn't switch it off yet, it puts it on a list. Mark as many as you want — they
-show a dashed outline — then press **▶ Apply the list**. You confirm, and GG Groups launches
-a separate process that waits for VS Code to close, writes every change at once and opens it
-again. One restart for all of them, not one per extension.
-
-Right-click that button to empty the list without applying anything.
+From the board you don't have to type any of that. Pick the icons with **Alt+click** and
+press **pause**: GG Groups lists what will happen and, once you confirm, launches a separate
+process that waits for VS Code to close, writes every change at once and opens it again. One
+restart for all of them, not one per extension. For a single one, right-click → **Turn
+extension off** does the same.
 
 A visible window opens and narrates what it does, and **it is the one that reopens VS
 Code**: if you open it yourself too early, the script finds the editor running again and
@@ -175,7 +175,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 195 tests, no VS Code needed
+npm test      # 185 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview
