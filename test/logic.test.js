@@ -40,7 +40,7 @@ mod._compile(fs.readFileSync(path.join(ROOT, 'extension.js'), 'utf8'), 'extensio
 Module._load = orig;
 
 const { Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale, NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
-  restartCommand } = mod.exports;
+  restartCommand, modKey } = mod.exports;
 const CTX = { extensionUri: { fsPath: ROOT } };
 const tiles = discover(CTX);
 // Iconos que el usuario puede mover: los nativos van bloqueados y no valen para estas pruebas.
@@ -1402,4 +1402,14 @@ test('al pedir el webview su estado, se le manda', async () => {
   await b.onMessage({ type: 'ready' });
   assert.strictEqual(b.last().type, 'state');
   assert.ok(b.last().folders.length, 'le llegaria un tablero vacio');
+});
+
+test('en Mac el texto dice Cmd, porque alli Ctrl+clic es el clic derecho', () => {
+  const real = process.platform;
+  const frase = 'Ctrl+click picks several; tap Ctrl twice';
+  Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+  assert.strictEqual(modKey(frase), 'Cmd+click picks several; tap Cmd twice');
+  Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+  assert.strictEqual(modKey(frase), frase, 'fuera de Mac la tecla es Ctrl');
+  Object.defineProperty(process, 'platform', { value: real, configurable: true });
 });

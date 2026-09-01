@@ -45,12 +45,12 @@
   "Could not apply the list: {0}": "No se pudo aplicar la lista: {0}",
   "Could not open \"{0}\": {1}": "No se pudo abrir \"{0}\": {1}",
   "A window will open. Do not open VS Code yourself: it opens it for you when it finishes.": "Se abrirá una ventana. No abras VS Code tú: ella lo abre al terminar.",
-  "Alt+click icons to pick several": "Alt+clic en los iconos para elegir varios",
   "Turn the selected ones off": "Desactivar los seleccionados",
   "Turn the selected ones on": "Activar los seleccionados",
   "Some are on and some are off: pick only one kind": "Hay activas y desactivadas mezcladas: elige de un solo tipo",
   "Uninstall the selected ones": "Desinstalar los seleccionados",
   "Uninstall {0} extensions? They are deleted from disk.": "¿Desinstalar {0} extensiones? Se borran del disco.",
-  "\"{0}\" is turned off. Pick it with Alt+click and press play to turn it on.": "\"{0}\" está desactivada. Elígela con Alt+clic y pulsa play para activarla.",
-  "Drag one icon onto another to group them. Alt+click picks several; tap Alt twice to drop them.": "Arrastra un icono sobre otro para agruparlos. Alt+clic elige varios; dos toques de Alt los suelta."
+  "Ctrl+click icons to pick several": "Ctrl+clic en los iconos para elegir varios",
+  "Drag one icon onto another to group them. Ctrl+click picks several; tap Ctrl twice to drop them.": "Arrastra un icono sobre otro para agruparlos. Ctrl+clic elige varios; dos toques de Ctrl los suelta.",
+  "\"{0}\" is turned off. Pick it with Ctrl+click and press play to turn it on.": "\"{0}\" está desactivada. Elígela con Ctrl+clic y pulsa play para activarla."
 }

@@ -2,7 +2,7 @@
   "name": "view-groups",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "publisher": "niko",
   "engines": {
     "vscode": "^1.74.0"

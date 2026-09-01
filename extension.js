@@ -220,6 +220,9 @@ function restartCommand(plan) {
   };
 }
 
+/** Ctrl fuera de Mac, Cmd dentro: el texto tiene que decir la tecla que de verdad vale. */
+const modKey = (s) => (process.platform === 'darwin' ? s.replace(/Ctrl/g, 'Cmd') : s);
+
 const literal = (s) => (s === 'true' ? true : s === 'false' ? false : s.replace(/^['"]|['"]$/g, ''));
 
 /**
@@ -955,7 +958,7 @@ class Board {
     // deliberada — no algo que ocurra por pulsar donde antes se abria otra cosa.
     if (tile.off) {
       vscode.window.showInformationMessage(
-        t('"{0}" is turned off. Pick it with Alt+click and press play to turn it on.', this.nameOf(tile)));
+        modKey(t('"{0}" is turned off. Pick it with Ctrl+click and press play to turn it on.', this.nameOf(tile))));
       return;
     }
     let timer;
@@ -1153,6 +1156,8 @@ class Board {
       icons[n] = String(w.asWebviewUri(
         vscode.Uri.joinPath(this.ctx.extensionUri, 'media', 'codicons', n + '.svg')));
     }
+    // En Mac, Ctrl+clic ES el clic derecho: alli la tecla de "y ademas este" es Cmd, y el
+    // codigo ya acepta las dos. Solo faltaba que el texto no mintiera.
     const strings = {
       newFolder: t('New folder'), refresh: t('Refresh'), sortAll: t('Sort everything A-Z'),
       sort: t('Sort A-Z'), rename: t('Rename folder'), renameTile: t('Rename icon'),
@@ -1161,11 +1166,11 @@ class Board {
       uninstall: t('Uninstall extension'), forget: t('Remove from the board'),
       hide: t('Hide icon'), unhide: t('Show icon'), showHiddenOn: t('Show hidden icons'),
       showHiddenOff: t('Stop showing hidden icons'), unhideAll: t('Show all hidden icons'),
-      pickFirst: t('Alt+click icons to pick several'),
+      pickFirst: modKey(t('Ctrl+click icons to pick several')),
       disableSel: t('Turn the selected ones off'), enableSel: t('Turn the selected ones on'),
       mixedPick: t('Some are on and some are off: pick only one kind'),
       uninstallSel: t('Uninstall the selected ones'),
-      hint: t('Drag one icon onto another to group them. Alt+click picks several; tap Alt twice to drop them.'),
+      hint: modKey(t('Drag one icon onto another to group them. Ctrl+click picks several; tap Ctrl twice to drop them.')),
     };
     return `<!DOCTYPE html><html><head>
 <meta charset="utf-8">
@@ -1240,5 +1245,5 @@ module.exports = {
   activate, deactivate() {},
   Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale,
   NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
-  restartCommand, findPython,
+  restartCommand, findPython, modKey,
 };

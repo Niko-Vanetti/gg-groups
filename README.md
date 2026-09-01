@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-192%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-193%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -38,7 +38,7 @@ obvious way: drag one icon onto another, name the folder, done.
 | **Stack duplicates** | Three icons called *Claude Code* collapse into one with a **3** |
 | **Rename anything** | Icons and folders, whatever makes sense to you |
 | **Hide the noise** | Right-click → hide. The eye at the bottom brings them all back |
-| **Work in groups** | **Alt+click** picks several: they drag together, turn off together, uninstall together |
+| **Work in groups** | **Ctrl+click** picks several: they drag together, turn off together, uninstall together |
 | **Disabled ones stay visible** | Turn one off and it greys out at the bottom instead of vanishing, one click from coming back |
 | **Native block, locked** | Explorer, Search, Source Control, Run and Debug, Extensions — pinned on top, in VS Code's own order, indestructible |
 
@@ -68,9 +68,9 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 | **Drag to a folder header** | Moves it in |
 | **Drag to an edge** | Places it between two icons |
 | **Drag to empty space** | Takes it out of its folder |
-| **Alt+click an icon** | Adds or removes it from the selection |
-| **Alt Alt · Escape** | Drops the whole selection |
-| **Alt+click a stack** | Picks every icon under it at once |
+| **Ctrl+click an icon** | Adds or removes it from the selection |
+| **Ctrl Ctrl · Escape** | Drops the whole selection |
+| **Ctrl+click a stack** | Picks every icon under it at once |
 | **Drag a picked one** | Takes every picked icon along |
 | **Right-click an icon** | Rename · turn off · uninstall · hide |
 | **Right-click a folder** | Sort A–Z · rename · delete |
@@ -78,19 +78,22 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 
 ### Picking several
 
-**Alt+click** on icons adds them to the selection. With several picked, dragging one takes
+**Ctrl+click** on icons adds them to the selection. With several picked, dragging one takes
 them all, and the bottom buttons act on the whole group: **pause** turns them off, **play**
 turns them on, the **trash** uninstalls them.
 
-To drop the selection: a normal click, **two quick taps of Alt**, or **Escape**. Simply
-releasing the key deliberately doesn't clear it — if it did, you would have to hold Alt down
+On macOS the key is **Cmd**, since Ctrl+click is the right click there; the extension's own
+text says whichever applies to your system.
+
+To drop the selection: a normal click, **two quick taps of Ctrl**, or **Escape**. Simply
+releasing the key deliberately doesn't clear it — if it did, you would have to hold Ctrl down
 to press the buttons, which is exactly what you do after picking.
 
 **Pause** and **play** are the apply button: they list what will happen, close VS Code, apply
 it and open it again. One restart no matter how many you picked. Cancel and nothing happens.
 
 Clicking a disabled extension doesn't switch it back on — it tells you it's off. Turning it
-on is deliberate: pick it with Alt+click and press play.
+on is deliberate: pick it with Ctrl+click and press play.
 
 The pause/play button knows which one applies: pause when everything picked is on, play when
 everything is off. Mix the two and it greys out — there is no sensible action to apply to all
@@ -120,7 +123,7 @@ python scripts/gg-extensions.py enable --all
 anything written while it runs is lost. The script refuses to continue if it finds VS Code
 running, and takes a timestamped backup before every write.
 
-From the board you don't have to type any of that. Pick the icons with **Alt+click** and
+From the board you don't have to type any of that. Pick the icons with **Ctrl+click** and
 press **pause**: GG Groups lists what will happen and, once you confirm, launches a separate
 process that waits for VS Code to close, writes every change at once and opens it again. One
 restart for all of them, not one per extension. For a single one, right-click → **Turn
@@ -180,7 +183,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 192 tests, no VS Code needed
+npm test      # 193 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

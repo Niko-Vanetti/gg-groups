@@ -13,7 +13,9 @@
   // encontrarse iconos seleccionados al volver seria una sorpresa desagradable.
   const sel = new Set();
   const ICONS = window.ICONS || {};
-  const DOBLE_TOQUE = 450;                  // ms entre los dos toques de Alt
+  const DOBLE_TOQUE = 450;                  // ms entre los dos toques de Ctrl
+  // Ctrl en Windows y Linux, Cmd en Mac: la misma tecla de "y ademas este" de siempre.
+  const eligiendo = (e) => !!e && (e.ctrlKey || e.metaKey);
 
   const el = (tag, cls, parent) => {
     const n = document.createElement(tag);
@@ -177,7 +179,7 @@
     n.appendChild(art(t));
 
     n.onclick = (e) => {
-      if (elegible && e && e.altKey) return toggleSel([t.key]);
+      if (elegible && eligiendo(e)) return toggleSel([t.key]);
       sel.clear();
       active = t.key;
       persist();
@@ -206,8 +208,8 @@
     el('span', 'count', n).textContent = s.tiles.length;
 
     n.onclick = (e) => {
-      // Con Alt entran todas las de la pila: es lo que se ve, y es lo que se espera.
-      if (e && e.altKey) return toggleSel(keys.filter((k) => !sel.has(k)).length ? keys.filter((k) => !sel.has(k)) : keys);
+      // Con Ctrl entran todas las de la pila: es lo que se ve, y es lo que se espera.
+      if (eligiendo(e)) return toggleSel(keys.filter((k) => !sel.has(k)).length ? keys.filter((k) => !sel.has(k)) : keys);
       open.has(s.stack) ? open.delete(s.stack) : open.add(s.stack);
       persist();
       render();
@@ -393,16 +395,16 @@
     post({ type: 'ungroup', keys: drag.keys });
   };
 
-  // Dos toques rapidos de Alt sueltan la eleccion. Deshacerla con solo soltar la tecla
-  // obligaria a tener Alt apretado para pulsar los botones del pie, que es justo lo que
-  // se hace despues de elegir. Escape hace lo mismo, que es lo que se espera de Escape.
-  let ultimoAlt = 0;
+  // Dos toques rapidos de Ctrl sueltan la eleccion. Deshacerla con solo soltar la tecla
+  // obligaria a tenerla apretada para pulsar los botones del pie, que es justo lo que se
+  // hace despues de elegir. Escape hace lo mismo, que es lo que se espera de Escape.
+  let ultimoCtrl = 0;
   window.addEventListener('keyup', (e) => {
     if (e.key === 'Escape') return soltar();
-    if (e.key !== 'Alt') return;
+    if (e.key !== 'Control' && e.key !== 'Meta') return;
     const ahora = Date.now();
-    if (ahora - ultimoAlt < DOBLE_TOQUE) soltar();
-    ultimoAlt = ahora;
+    if (ahora - ultimoCtrl < DOBLE_TOQUE) soltar();
+    ultimoCtrl = ahora;
   });
   function soltar() {
     if (!sel.size) return;

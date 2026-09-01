@@ -11,7 +11,7 @@ const STR = {
   renameTile: 'Cambiar nombre del icono', resetName: 'Usar el nombre original',
   hide: 'Ocultar icono', unhide: 'Mostrar icono',
   showHiddenOn: 'Ver ocultos', showHiddenOff: 'Dejar de ver ocultos',
-  pickFirst: 'Alt+clic para elegir varios', mixedPick: 'Hay de los dos tipos mezclados',
+  pickFirst: 'Ctrl+clic para elegir varios', mixedPick: 'Hay de los dos tipos mezclados',
   disableSel: 'Desactivar los elegidos', enableSel: 'Activar los elegidos',
   uninstallSel: 'Desinstalar los elegidos',
   unhideAll: 'Recuperar todos los ocultos',
@@ -544,11 +544,11 @@ test('UI: el interruptor es uno solo, y solo marca', () => {
     'varias formas de apagar la misma extension confunden mas de lo que ayudan');
 });
 
-// --- elegir varios con Alt ---
+// --- elegir varios con Ctrl ---
 
-test('UI: Alt+clic elige, y sin Alt abre', () => {
+test('UI: Ctrl+clic elige, y sin Ctrl abre', () => {
   const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
-  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
   assert.ok(ui.cells()[0].className.includes('sel'));
   assert.strictEqual(ui.last(), undefined, 'elegir no deberia abrir nada');
 
@@ -557,10 +557,10 @@ test('UI: Alt+clic elige, y sin Alt abre', () => {
   assert.ok(!ui.cells()[0].className.includes('sel'), 'un clic normal deberia soltar lo elegido');
 });
 
-test('UI: Alt+clic otra vez lo quita de la seleccion', () => {
+test('UI: Ctrl+clic otra vez lo quita de la seleccion', () => {
   const ui = mount({ loose: [tile('c:a')] });
-  ui.cells()[0].onclick({ altKey: true });
-  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
   assert.ok(!ui.cells()[0].className.includes('sel'));
 });
 
@@ -570,31 +570,31 @@ test('UI: ni el bloque nativo ni el propio tablero se pueden elegir', () => {
     loose: [tile('c:yo', { fixed: true })],
   });
   ui.folders()[0].onclick();
-  ui.doc.querySelector('.kids .cell').onclick({ altKey: true });
-  ui.cells().find((c) => c.dataset.key === 'c:yo').onclick({ altKey: true });
+  ui.doc.querySelector('.kids .cell').onclick({ ctrlKey: true });
+  ui.cells().find((c) => c.dataset.key === 'c:yo').onclick({ ctrlKey: true });
   assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 0);
 });
 
 test('UI: arrastrar uno de los elegidos los arrastra todos', () => {
   const ui = mount({ loose: [tile('c:a'), tile('c:b'), tile('c:c')] });
-  ui.cells()[0].onclick({ altKey: true });
-  ui.cells()[1].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
+  ui.cells()[1].onclick({ ctrlKey: true });
   ui.cells()[0].ondragstart({ dataTransfer: null });
   assert.deepStrictEqual([...ui.board().drag.keys], ['c:a', 'c:b']);
 });
 
 test('UI: arrastrar uno de fuera de la seleccion se lleva solo a ese', () => {
   const ui = mount({ loose: [tile('c:a'), tile('c:b'), tile('c:c')] });
-  ui.cells()[0].onclick({ altKey: true });
-  ui.cells()[1].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
+  ui.cells()[1].onclick({ ctrlKey: true });
   ui.cells()[2].ondragstart({ dataTransfer: null });
   assert.deepStrictEqual([...ui.board().drag.keys], ['c:c']);
 });
 
 test('UI: con todo encendido el boton es pausa, y apaga el grupo', () => {
   const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
-  ui.cells()[0].onclick({ altKey: true });
-  ui.cells()[1].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
+  ui.cells()[1].onclick({ ctrlKey: true });
   const boton = ui.actions()[3];
   assert.ok(/debug-pause/.test(boton.querySelector('.mask').style.maskImage));
   assert.ok(boton.title.includes('2'));
@@ -604,8 +604,8 @@ test('UI: con todo encendido el boton es pausa, y apaga el grupo', () => {
 
 test('UI: con todo apagado el boton es play, y enciende el grupo', () => {
   const ui = mount({ loose: [tile('c:a', { off: true }), tile('c:b', { off: true })] });
-  ui.cells()[0].onclick({ altKey: true });
-  ui.cells()[1].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
+  ui.cells()[1].onclick({ ctrlKey: true });
   const boton = ui.actions()[3];
   assert.ok(/play/.test(boton.querySelector('.mask').style.maskImage));
   boton.onclick();
@@ -614,8 +614,8 @@ test('UI: con todo apagado el boton es play, y enciende el grupo', () => {
 
 test('UI: mezclando encendidas y apagadas el boton se apaga y explica por que', () => {
   const ui = mount({ loose: [tile('c:a'), tile('c:b', { off: true })] });
-  ui.cells()[0].onclick({ altKey: true });
-  ui.cells()[1].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
+  ui.cells()[1].onclick({ ctrlKey: true });
   const boton = ui.actions()[3];
   assert.ok(boton.className.includes('disabled'));
   assert.strictEqual(boton.onclick, null, 'apagaria o encenderia eligiendo por su cuenta');
@@ -624,7 +624,7 @@ test('UI: mezclando encendidas y apagadas el boton se apaga y explica por que', 
 
 test('UI: la papelera desinstala lo elegido', () => {
   const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
-  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
   const papelera = ui.actions()[4];
   assert.ok(!papelera.className.includes('disabled'));
   papelera.onclick();
@@ -640,8 +640,8 @@ test('UI: el ojo se abre y se cierra segun lo que hace', () => {
 
 test('UI: lo elegido que desaparece deja de contar', () => {
   const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
-  ui.cells()[0].onclick({ altKey: true });
-  ui.cells()[1].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
+  ui.cells()[1].onclick({ ctrlKey: true });
   ui.send({ type: 'state', folders: [], loose: [tile('c:a')] });      // c:b ya no esta
   assert.strictEqual(ui.board().selState().count, 1, 'contaria iconos que ya no existen');
 });
@@ -656,14 +656,14 @@ test('UI: al cargar pide el estado en vez de esperarlo', () => {
 test('UI: el pie no ofrece aplicar aparte: eso lo hace pausa o play', () => {
   const ui = mount({ loose: [tile('c:a')] });
   assert.strictEqual(ui.actions().length, 6, 'sobra o falta un boton abajo');
-  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
   assert.strictEqual(ui.actions().length, 6, 'elegir no deberia sacar botones nuevos');
 });
 
 test('UI: elegir no pone numeritos encima del icono', () => {
   const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
-  ui.cells()[0].onclick({ altKey: true });
-  ui.cells()[1].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
+  ui.cells()[1].onclick({ ctrlKey: true });
   // Lo unico que distingue a una elegida es el recuadro.
   assert.strictEqual(ui.doc.querySelectorAll('#items .cell .count').length, 0);
   assert.strictEqual(ui.doc.querySelectorAll('#actions .cell .count').length, 0);
@@ -680,54 +680,54 @@ test('UI: solo una regla dibuja sobre el icono, para que no se pisen', () => {
     'dos reglas sobre el mismo ::after se mezclan sin avisar: ' + dibujan.join(', '));
 });
 
-test('UI: dos toques rapidos de Alt sueltan la eleccion', () => {
+test('UI: dos toques rapidos de Ctrl sueltan la eleccion', () => {
   const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
-  ui.cells()[0].onclick({ altKey: true });
-  ui.cells()[1].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
+  ui.cells()[1].onclick({ ctrlKey: true });
   assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 2);
-  ui.keyup('Alt');
-  ui.keyup('Alt');
+  ui.keyup('Control');
+  ui.keyup('Control');
   assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 0, 'siguen elegidos');
   assert.strictEqual(ui.board().selState().count, 0);
 });
 
-test('UI: un solo toque de Alt no suelta nada', () => {
+test('UI: un solo toque de Ctrl no suelta nada', () => {
   // Si soltar la tecla bastara, habria que tenerla apretada para pulsar los botones.
   const ui = mount({ loose: [tile('c:a')] });
-  ui.cells()[0].onclick({ altKey: true });
-  ui.keyup('Alt');
+  ui.cells()[0].onclick({ ctrlKey: true });
+  ui.keyup('Control');
   assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 1);
 });
 
 test('UI: dos toques lentos tampoco: tienen que ser seguidos', () => {
   const ui = mount({ loose: [tile('c:a')] });
-  ui.cells()[0].onclick({ altKey: true });
-  ui.keyup('Alt');
+  ui.cells()[0].onclick({ ctrlKey: true });
+  ui.keyup('Control');
   ui.avanza(2000);
-  ui.keyup('Alt');
+  ui.keyup('Control');
   assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 1);
 });
 
 test('UI: Escape tambien suelta, que es lo que se espera de Escape', () => {
   const ui = mount({ loose: [tile('c:a')] });
-  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
   ui.keyup('Escape');
   assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 0);
 });
 
 test('UI: soltar otra tecla no deshace nada', () => {
   const ui = mount({ loose: [tile('c:a')] });
-  ui.cells()[0].onclick({ altKey: true });
+  ui.cells()[0].onclick({ ctrlKey: true });
   ui.keyup('Shift');
   ui.keyup('a');
   assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 1);
 });
 
-test('UI: tras soltar Alt el boton del pie sigue sirviendo', () => {
+test('UI: tras soltar Ctrl el boton del pie sigue sirviendo', () => {
   const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
-  ui.cells()[0].onclick({ altKey: true });
-  ui.cells()[1].onclick({ altKey: true });
-  ui.keyup('Alt');                                    // se suelta para poder pulsar
+  ui.cells()[0].onclick({ ctrlKey: true });
+  ui.cells()[1].onclick({ ctrlKey: true });
+  ui.keyup('Control');                                    // se suelta para poder pulsar
   ui.actions()[3].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'apply', keys: ['c:a', 'c:b'], action: 'disable' });
 });

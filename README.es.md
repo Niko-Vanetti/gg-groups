@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-192%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-193%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -38,7 +38,7 @@ que creas de la forma evidente: arrastras un icono sobre otro, le pones nombre, 
 | **Apilar los repetidos** | Tres iconos llamados *Claude Code* se juntan en uno con un **3** |
 | **Renombrar lo que sea** | Iconos y carpetas, con el nombre que a ti te sirva |
 | **Esconder el ruido** | Clic derecho → ocultar. El ojo del pie los devuelve todos |
-| **Trabajar por grupos** | **Alt+clic** elige varios: se arrastran juntos, se apagan juntos, se desinstalan juntos |
+| **Trabajar por grupos** | **Ctrl+clic** elige varios: se arrastran juntos, se apagan juntos, se desinstalan juntos |
 | **Las apagadas siguen a la vista** | Al desactivar una queda en gris al fondo en vez de desaparecer, a un clic de volver |
 | **Bloque nativo, blindado** | Explorador, Buscar, Control de código fuente, Ejecutar y depurar, Extensiones — fijos arriba, en el orden de VS Code, imposibles de romper |
 
@@ -68,9 +68,9 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 | **Arrastrar a la cabecera de una carpeta** | Lo mete dentro |
 | **Arrastrar a un borde** | Lo coloca entre dos iconos |
 | **Arrastrar al vacío** | Lo saca de su carpeta |
-| **Alt+clic en un icono** | Lo añade o lo quita de la selección |
-| **Alt Alt · Escape** | Suelta la selección entera |
-| **Alt+clic en una pila** | Elige de una vez todas las que hay debajo |
+| **Ctrl+clic en un icono** | Lo añade o lo quita de la selección |
+| **Ctrl Ctrl · Escape** | Suelta la selección entera |
+| **Ctrl+clic en una pila** | Elige de una vez todas las que hay debajo |
 | **Arrastrar uno elegido** | Se lleva a todos los elegidos |
 | **Clic derecho en un icono** | Renombrar · desactivar · desinstalar · ocultar |
 | **Clic derecho en una carpeta** | Ordenar A–Z · renombrar · eliminar |
@@ -78,12 +78,15 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 
 ### Elegir varios
 
-**Alt+clic** sobre los iconos los va añadiendo a la selección. Con varios elegidos, arrastrar
+**Ctrl+clic** sobre los iconos los va añadiendo a la selección. Con varios elegidos, arrastrar
 uno se los lleva a todos, y los botones del pie actúan sobre el grupo entero: **pausa** los
 apaga, **play** los enciende, la **papelera** los desinstala.
 
-Para soltar la selección: un clic normal, **dos toques seguidos de Alt**, o **Escape**. Soltar
-la tecla sin más no la deshace a propósito — si lo hiciera, habría que tener Alt apretado
+En macOS la tecla es **Cmd**, porque allí Ctrl+clic es el clic derecho; el texto de la
+extensión lo dice según tu sistema.
+
+Para soltar la selección: un clic normal, **dos toques seguidos de Ctrl**, o **Escape**. Soltar
+la tecla sin más no la deshace a propósito — si lo hiciera, habría que tener Ctrl apretado
 para poder pulsar los botones, que es justo lo que se hace después de elegir.
 
 **Pausa** y **play** son el botón de aplicar: enumeran qué va a pasar, cierran VS Code, lo
@@ -91,7 +94,7 @@ aplican y lo vuelven a abrir. Todo en un solo cierre, por muchas que elijas. Si 
 pasa nada.
 
 Pulsar una extensión apagada no la enciende: te dice que está desactivada. Encenderla es
-deliberado — la eliges con Alt+clic y pulsas play.
+deliberado — la eliges con Ctrl+clic y pulsas play.
 
 El botón de pausa/play sabe qué toca: aparece como pausa si todo lo elegido está encendido, y
 como play si todo está apagado. Si mezclas encendidas y apagadas se pone gris — no hay una
@@ -121,7 +124,7 @@ python scripts/gg-extensions.py enable --all
 que lo que se escriba con el editor abierto se pierde. El guion se niega a seguir si lo
 encuentra abierto, y guarda una copia con fecha antes de cada escritura.
 
-Desde el tablero no hace falta escribir nada. Eliges los iconos con **Alt+clic** y pulsas
+Desde el tablero no hace falta escribir nada. Eliges los iconos con **Ctrl+clic** y pulsas
 **pausa**: GG Groups te enumera lo que va a pasar y, al confirmar, lanza un proceso aparte
 que espera a que VS Code se cierre, escribe todos los cambios de una vez y lo vuelve a
 abrir. Un solo cierre para todas, no uno por extensión. Para una sola, clic derecho →
@@ -184,7 +187,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 192 pruebas, sin necesidad de VS Code
+npm test      # 193 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real
