@@ -406,6 +406,9 @@
     if (e.data && e.data.type === 'state') { state = e.data; render(); }
   });
   render();
+  // Se pide el estado en vez de esperarlo: lo que la extension mande justo despues de
+  // fijar el HTML llega antes de que este guion exista y se pierde sin dejar rastro.
+  post({ type: 'ready' });
 
   // Solo para las pruebas: expone el estado interno del webview.
   window.__board = { render, stacked, get state() { return state; }, get drag() { return drag; }, open, sel, selState };

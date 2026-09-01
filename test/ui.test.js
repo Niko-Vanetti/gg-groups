@@ -44,8 +44,12 @@ function mount(state) {
     window.ICONS[n] = 'vsc://codicons/' + n + '.svg';
   }
   window.eval(SRC);
+  // El saludo del arranque no es una accion del usuario: se aparta para que las pruebas
+  // que cuentan mensajes sigan contando lo que les importa.
+  const saludo = posted.splice(0);
 
   const api = {
+    saludo,
     window,
     doc: window.document,
     posted,
@@ -677,4 +681,11 @@ test('UI: lo elegido que desaparece deja de contar', () => {
   ui.cells()[1].onclick({ altKey: true });
   ui.send({ type: 'state', folders: [], loose: [tile('c:a')] });      // c:b ya no esta
   assert.strictEqual(ui.board().selState().count, 1, 'contaria iconos que ya no existen');
+});
+
+test('UI: al cargar pide el estado en vez de esperarlo', () => {
+  // Lo que la extension manda justo despues de fijar el HTML llega antes de que exista
+  // este guion y se pierde: el tablero se quedaba en negro sin decir nada.
+  const ui = mount();
+  assert.deepStrictEqual(ui.saludo.map((m) => m.type), ['ready']);
 });

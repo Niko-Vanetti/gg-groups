@@ -1173,6 +1173,9 @@ class Board {
 
       case 'newFolder':
         return this.newFolder();
+      // El webview avisa de que ya esta en marcha: hasta aqui no habia nadie escuchando.
+      case 'ready':
+        return this.tiles.length ? this.render() : this.refresh();
       case 'refresh':
         return this.refresh();
     }

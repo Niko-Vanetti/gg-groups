@@ -1396,3 +1396,21 @@ test('al confirmar, desinstala cada extension una sola vez', async () => {
   warnAnswer = null;
   b.restore();
 });
+
+test('al pedir el webview su estado, se le manda', async () => {
+  const b = makeBoard();
+  await b.refresh();
+  b.posted.length = 0;
+  await b.onMessage({ type: 'ready' });
+  assert.strictEqual(b.last().type, 'state');
+  assert.ok(b.last().folders.length, 'le llegaria un tablero vacio');
+});
+
+test('si todavia no hay baldosas, primero se descubren', async () => {
+  const b = makeBoard();
+  b.posted.length = 0;
+  b.tiles = [];                        // la vista se resolvio antes del primer refresco
+  await b.onMessage({ type: 'ready' });
+  assert.ok(b.tiles.length, 'se quedaria en negro hasta el primer refresco');
+  assert.strictEqual(b.last().type, 'state');
+});
