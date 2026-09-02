@@ -15,7 +15,7 @@ const STR = {
   disableSel: 'Desactivar los elegidos', enableSel: 'Activar los elegidos',
   uninstallSel: 'Desinstalar los elegidos',
   checkUpdates: 'Buscar actualizaciones', update: 'Actualizar a {0}',
-  split: 'Separar este grupo',
+  split: 'Separar este grupo', face: 'Elegir el icono del grupo',
   unhideAll: 'Recuperar todos los ocultos',
   disable: 'Desactivar la extension', enable: 'Activar la extension', forget: 'Quitar del tablero',
   uninstall: 'Desinstalar la extension',
@@ -870,11 +870,16 @@ test('UI: media pila elegida no marca la pila entera', () => {
   assert.ok(!ui.stacks()[0].className.includes('sel'));
 });
 
-test('UI: una pila ofrece separarse, que si no no habria vuelta atras', () => {
+test('UI: una pila deja elegir su icono y separarse', () => {
   const ui = mount({ loose: [tile('c:a', { group: 'f:1' }), tile('c:b', { group: 'f:1' })] });
   ui.stacks()[0].oncontextmenu(ui.ev());
-  const rows = [...ui.doc.getElementById('menu').children];
-  assert.strictEqual(rows[0].textContent, STR.split);
+  let rows = [...ui.doc.getElementById('menu').children];
+  assert.deepStrictEqual(rows.slice(0, 2).map((r) => r.textContent), [STR.face, STR.split]);
   rows[0].onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'face', keys: ['c:a', 'c:b'] });
+
+  ui.stacks()[0].oncontextmenu(ui.ev());
+  rows = [...ui.doc.getElementById('menu').children];
+  rows[1].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'split', keys: ['c:a', 'c:b'] });
 });

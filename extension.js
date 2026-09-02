@@ -16,6 +16,7 @@ const KEY_LOCALE = 'viewGroups.locale';
 // Catalogo de lo que se ha visto alguna vez, para reconocer lo que ya no esta cargado.
 const KEY_SEEN = 'viewGroups.seen';
 const KEY_OFF = 'viewGroups.off';
+const KEY_FACE = 'viewGroups.face';                     // que icono da la cara por su grupo
 const KEY_MERGED = 'viewGroups.merged';                 // iconos que el usuario junto
 const KEY_SPLIT = 'viewGroups.split';                   // y los que saco de su familia
 const KEY_QUEUE = 'viewGroups.queue';                   // solo para limpiar el estado de versiones viejas
@@ -217,6 +218,7 @@ function installedExtensions(ctx) {
       // Lo que ese paquete arrastro consigo al instalarse: Java se instala una vez y
       // aparecen seis. En la barra son seis iconos, pero para el usuario son una cosa.
       pack: Array.isArray(pkg.extensionPack) ? pkg.extensionPack : [],
+      installed: (e.metadata || {}).installedTimestamp || 0,
       version: e.version || pkg.version || '',
       label: displayName(carpeta, pkg) || id,
       owner: (e.metadata || {}).publisherDisplayName || pkg.publisher || '',
@@ -639,11 +641,30 @@ function discover(ctx, juntadas, separadas) {
     if (!suelta(a) && !suelta(b)) fam.unir(String(a).toLowerCase(), String(b).toLowerCase());
   }
 
+  // La cara del grupo: la que trajo a las demas. No vale "la instalada primero" a secas —
+  // en Java el paquete llego despues que dos de sus miembros—, asi que gana la que mas
+  // arrastro consigo, y entre iguales la mas antigua.
+  const trajo = new Map();
+  const cuando = new Map();
+  for (const e of instaladas) {
+    cuando.set(e.ext.toLowerCase(), e.installed || 0);
+    if ((e.pack || []).length) trajo.set(e.ext.toLowerCase(), e.pack.length);
+  }
+  for (const e of vscode.extensions.all) {
+    const pack = (e.packageJSON || {}).extensionPack;
+    if (Array.isArray(pack) && pack.length) {
+      trajo.set(String(e.id).toLowerCase(), Math.max(trajo.get(String(e.id).toLowerCase()) || 0, pack.length));
+    }
+  }
+
   for (const x of unicas) {
+    const id = String(x.ext || '').toLowerCase();
     // El bloque nativo y lo que es de VS Code van fijos y nunca se agrupan.
     x.group = x.native || !x.ext || x.ext === 'vscode'
       ? 'solo:' + x.key
-      : suelta(x.ext) ? 'ext:' + x.ext.toLowerCase() : 'fam:' + fam.raiz(x.ext.toLowerCase());
+      : suelta(x.ext) ? 'ext:' + id : 'fam:' + fam.raiz(id);
+    x.brought = trajo.get(id) || 0;
+    x.installed = cuando.get(id) || 0;
   }
   return unicas;
 }
@@ -1109,7 +1130,35 @@ class Board {
     await this.ctx.globalState.update(KEY_MERGED,
       this.merged.filter(([a, b]) => !bajas.has(String(a).toLowerCase()) && !bajas.has(String(b).toLowerCase())));
     await this.ctx.globalState.update(KEY_SPLIT, [...new Set([...this.split, ...exts])]);
+    await this.ctx.globalState.update(KEY_FACE, this.faces.filter((e) => !bajas.has(String(e).toLowerCase())));
     await this.refresh();
+  }
+
+  /** Iconos que el usuario eligio como cara de su grupo. */
+  get faces() {
+    return this.list(KEY_FACE);
+  }
+
+  /** Pregunta cual de las del grupo pone la cara, y se queda con esa. */
+  async pickFace(keys) {
+    const tiles = (Array.isArray(keys) ? keys : [])
+      .map((k) => this.tiles.find((x) => x.key === k))
+      .filter((x) => x && x.ext && x.ext !== 'vscode' && !x.native);
+    if (tiles.length < 2) return;
+    const opciones = [];
+    const vistos = new Set();
+    for (const x of tiles) {
+      if (vistos.has(x.ext)) continue;                  // una entrada por extension
+      vistos.add(x.ext);
+      opciones.push({ label: this.nameOf(x), description: x.ext, ext: x.ext });
+    }
+    const pick = await vscode.window.showQuickPick(opciones, { title: t('Which icon represents the group?') });
+    if (!pick) return;
+    // Una sola cara por grupo: las demas del mismo dejan de serlo.
+    const suyas = new Set(tiles.map((x) => String(x.ext).toLowerCase()));
+    await this.ctx.globalState.update(KEY_FACE,
+      [...this.faces.filter((e) => !suyas.has(String(e).toLowerCase())), pick.ext]);
+    this.render();
   }
 
   /** Deja de recordar una extension apagada: su icono desaparece del tablero. */
@@ -1352,9 +1401,18 @@ class Board {
     // delante es la que da la cara por la familia.
     const orden = new Map(this.order.map((k, i) => [k, i]));
     const suOrden = (x) => (orden.has(x.key) ? orden.get(x.key) : posicion.has(x.key) ? posicion.get(x.key) : 1e9);
+    // Dos cosas distintas: quien decide DONDE vive el grupo —la baldosa mas viva— y quien
+    // le pone la CARA. La cara puede ser una pasiva; colocar por ella escondería el grupo.
+    const elegida = new Set(this.faces.map((e) => String(e).toLowerCase()));
+    const comoCara = (x) => (elegida.has(String(x.ext).toLowerCase()) ? 0 : 1);
     for (const tiles of grupos.values()) {
-      const lista = [...tiles].sort((a, b) => rango(a) - rango(b) || suOrden(a) - suOrden(b));
-      const grupo = { lider: lista[0], tiles: lista };
+      const lider = [...tiles].sort((a, b) => rango(a) - rango(b) || suOrden(a) - suOrden(b))[0];
+      const lista = [...tiles].sort((a, b) =>
+        comoCara(a) - comoCara(b)                       // lo que el usuario haya elegido
+        || (b.brought || 0) - (a.brought || 0)          // la que trajo a las demas
+        || (a.installed || 0) - (b.installed || 0)      // y entre iguales, la mas antigua
+        || suOrden(a) - suOrden(b));
+      const grupo = { lider, tiles: lista };
       const r = rango(grupo.lider);
       if (r === 3) fuera.passive.push(grupo);
       else if (r === 2) fuera.off.push(grupo);
@@ -1490,6 +1548,8 @@ class Board {
         return this.mergeTiles(m.keys, m.target);
       case 'split':
         return this.splitTiles(m.keys);
+      case 'face':
+        return this.pickFace(m.keys);
       case 'group': {
         const keys = m.keys.filter((k) => k !== m.target);
         if (!keys.length || !this.tiles.some((x) => x.key === m.target)) return;
@@ -1657,7 +1717,7 @@ class Board {
       mixedPick: t('Some are on and some are off: pick only one kind'),
       uninstallSel: t('Uninstall the selected ones'),
       checkUpdates: t('Check for updates'), update: t('Update to {0}'),
-      split: t('Split this group'),
+      split: t('Split this group'), face: t('Choose the icon of the group'),
       hint: modKey(t('Drag one icon onto another to join them. Ctrl+click picks several; tap Ctrl twice to drop them.')),
     };
     return `<!DOCTYPE html><html><head>

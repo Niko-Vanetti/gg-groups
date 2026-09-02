@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-245%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-251%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -67,7 +67,7 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 |---|---|
 | **Clic en un icono** | Abre el panel de esa extensión |
 | **Arrastrar icono → icono** | Los junta en un solo icono con su número |
-| **Clic derecho en una pila** | Separar el grupo |
+| **Clic derecho en una pila** | Elegir su icono · separar el grupo |
 | **Arrastrar a la cabecera de una carpeta** | Lo mete dentro |
 | **Arrastrar a un borde** | Lo coloca entre dos iconos |
 | **Arrastrar al vacío** | Lo saca de su carpeta |
@@ -153,7 +153,10 @@ para ejecutarla a mano.
 **Se agrupa por familias, no por el nombre.** Se juntan tres cosas: lo que un paquete de
 extensiones trajo consigo —instalas *Extension Pack for Java* y aparecen siete iconos, que
 para ti son una sola cosa—, lo que comparte el mismo dibujo, y lo que juntes tú arrastrando
-un icono sobre otro. Clic derecho en una pila la separa, y eso manda sobre lo automático.
+un icono sobre otro. **La cara del grupo es la que trajo a las demás** — el paquete que instalaste, no la que
+salga primero. No vale con "la más antigua": *Extension Pack for Java* se instaló después que
+dos de sus miembros, y en Remote hay tres candidatas a la vez. Clic derecho en una pila para
+elegir otro icono a mano, o para separarla; ambas cosas mandan sobre lo automático.
 
 **El dibujo también cuenta.** Es lo que ves: C/C++, C/C++ Themes y el
 paquete de C/C++ son tres extensiones distintas con el mismo logo, y en la barra parecen —y
@@ -213,7 +216,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 245 pruebas, sin necesidad de VS Code
+npm test      # 251 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

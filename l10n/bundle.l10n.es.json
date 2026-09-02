@@ -63,5 +63,7 @@
   "Passive extensions": "Extensiones pasivas",
   "Disabled": "Desactivadas",
   "Split this group": "Separar este grupo",
-  "Drag one icon onto another to join them. Ctrl+click picks several; tap Ctrl twice to drop them.": "Arrastra un icono sobre otro para juntarlos. Ctrl+clic elige varios; dos toques de Ctrl los suelta."
+  "Drag one icon onto another to join them. Ctrl+click picks several; tap Ctrl twice to drop them.": "Arrastra un icono sobre otro para juntarlos. Ctrl+clic elige varios; dos toques de Ctrl los suelta.",
+  "Choose the icon of the group": "Elegir el icono del grupo",
+  "Which icon represents the group?": "¿Cuál de ellas da la cara por el grupo?"
 }

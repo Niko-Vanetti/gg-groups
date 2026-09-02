@@ -21,7 +21,9 @@ const stub = {
   window: {
     showInputBox: async () => inputAnswer,
     showInformationMessage: async (...a) => { infos.push(a); return infoAnswer; },
-    showQuickPick: async (opciones) => opciones.find((o) => o.id === quickAnswer) || null,
+    showQuickPick: async (opciones) => (stub.window.__pick
+      ? stub.window.__pick(opciones)
+      : opciones.find((o) => o.id === quickAnswer) || null),
     showErrorMessage: (m) => { throw new Error('error UI inesperado: ' + m); },
     showWarningMessage: (m, ...resto) => { avisos.push(m); return warnAnswer; },
     createOutputChannel: () => ({ appendLine() {}, clear() {}, show() {} }),
@@ -250,7 +252,10 @@ test('mover entre iconos reordena y el orden se guarda', async () => {
   await b.onMessage({ type: 'move', keys: [last], before: before[0] });
   assert.strictEqual(b.looseTiles()[0].key, last);
   b.render();
-  assert.strictEqual(b.last().loose[0].key, last, 'el orden no sobrevive al repintado');
+  // Se compara el grupo y no la baldosa: si es de una familia, quien da la cara es la que
+  // trajo a las demas, no la que se arrastro.
+  const grupo = b.tiles.find((x) => x.key === last).group;
+  assert.strictEqual(b.last().loose[0].group, grupo, 'el orden no sobrevive al repintado');
 });
 
 test('reordenar dentro de una carpeta no la saca', async () => {
@@ -1745,4 +1750,71 @@ test('la familia se coloca donde este su icono mas adelantado', async () => {
   const ultima = sueltas[sueltas.length - 1];
   await b.onMessage({ type: 'move', keys: [ultima], before: sueltas[0] });
   assert.strictEqual(b.last().loose[0].key, ultima, 'arrastrar uno debe colocar al grupo');
+});
+
+// --- que icono da la cara por el grupo ---
+
+/** El primero de un grupo es el que pone cara y nombre a la pila. */
+const caraDe = (b, key) => {
+  const grupo = b.tiles.find((x) => x.key === key).group;
+  const todas = b.last().loose
+    .concat(b.last().folders.flatMap((f) => f.tiles))
+    .concat((b.last().sections || []).flatMap((f) => f.tiles));
+  return todas.find((x) => x.group === grupo);
+};
+
+test('da la cara la que trajo a las demas, no la que salga primero', async () => {
+  const b = makeBoard();
+  await b.refresh();
+  assert.strictEqual(caraDe(b, 'c:oneView').key, 'c:suiteView',
+    'el paquete es el que se instalo y de el cuelgan las otras');
+});
+
+test('y eso manda sobre la fecha, que el paquete puede llegar despues', async () => {
+  // En Java el paquete se instalo despues que dos de sus miembros: por fecha saldria mal.
+  const b = makeBoard();
+  await b.refresh();
+  const suite = b.tiles.find((x) => x.key === 'c:suiteView');
+  const uno = b.tiles.find((x) => x.key === 'c:oneView');
+  assert.ok(suite.brought > uno.brought, 'no se anoto quien trajo a quien');
+});
+
+test('el usuario puede elegir otra cara, y manda sobre todo', async () => {
+  const b = makeBoard();
+  await b.refresh();
+  stub.window.__pick = (ops) => ops.find((o) => o.ext === 'acme.two');
+  await b.onMessage({ type: 'face', keys: ['c:suiteView', 'c:oneView', 'c:twoView'] });
+  assert.strictEqual(caraDe(b, 'c:oneView').key, 'c:twoView');
+  stub.window.__pick = null;
+});
+
+test('elegir cara no coloca el grupo: sigue mandando la mas viva', async () => {
+  // Si la cara elegida fuera pasiva, colocar por ella escondería el grupo entero.
+  const b = makeBoard();
+  await b.refresh();
+  stub.window.__pick = (ops) => ops.find((o) => o.ext === 'acme.two');
+  await b.onMessage({ type: 'face', keys: ['c:suiteView', 'c:oneView', 'c:twoView'] });
+  assert.ok(b.last().loose.some((x) => x.key === 'c:twoView'), 'el grupo se escondio');
+  assert.deepStrictEqual(b.last().sections, []);
+  stub.window.__pick = null;
+});
+
+test('separar olvida la cara elegida', async () => {
+  const b = makeBoard();
+  await b.refresh();
+  stub.window.__pick = (ops) => ops.find((o) => o.ext === 'acme.two');
+  await b.onMessage({ type: 'face', keys: ['c:suiteView', 'c:twoView'] });
+  await b.onMessage({ type: 'split', keys: ['c:suiteView', 'c:oneView', 'c:twoView'] });
+  assert.deepStrictEqual(b.store.get('viewGroups.face') || [], []);
+  stub.window.__pick = null;
+});
+
+test('con una sola no se pregunta nada: no hay entre que elegir', async () => {
+  const b = makeBoard();
+  await b.refresh();
+  let preguntado = false;
+  stub.window.__pick = () => { preguntado = true; return null; };
+  await b.onMessage({ type: 'face', keys: ['c:notesView'] });
+  assert.strictEqual(preguntado, false);
+  stub.window.__pick = null;
 });

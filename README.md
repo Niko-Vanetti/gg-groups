@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-245%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-251%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -67,7 +67,7 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 |---|---|
 | **Click an icon** | Opens that extension's panel |
 | **Drag icon → icon** | Joins them into a single icon with a count |
-| **Right-click a stack** | Split the group |
+| **Right-click a stack** | Choose its icon · split the group |
 | **Drag to a folder header** | Moves it in |
 | **Drag to an edge** | Places it between two icons |
 | **Drag to empty space** | Takes it out of its folder |
@@ -152,8 +152,10 @@ clipboard to run by hand.
 **It groups by family, not by name.** Three things are joined: whatever an extension pack
 brought along — you install *Extension Pack for Java* and seven icons appear, which to you
 are one thing — whatever shares the same artwork, and whatever you join yourself by dragging
-one icon onto another. Right-click a stack to split it, and that wins over the automatic
-grouping.
+one icon onto another. **The group's face is whichever brought the others** — the pack you installed, not whichever
+turns up first. "Oldest one" isn't enough: *Extension Pack for Java* was installed after two
+of its members, and Remote has three candidates at once. Right-click a stack to pick another
+icon by hand, or to split it; both win over the automatic grouping.
 
 **Artwork counts too.** That's what you see: C/C++, C/C++ Themes and the C/C++
 pack are three different extensions sharing one logo, and in the bar they look — and are —
@@ -212,7 +214,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 245 tests, no VS Code needed
+npm test      # 251 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

@@ -240,6 +240,7 @@
       dropTarget(n, keys, nextKey, false);
     }
     n.oncontextmenu = (e) => menu(e, [
+      [S.face, () => post({ type: 'face', keys })],
       [S.split, () => post({ type: 'split', keys })],
       [S.hide, () => post({ type: 'hide', keys })],
       [S.sort, () => post({ type: 'sort', folder: null })],

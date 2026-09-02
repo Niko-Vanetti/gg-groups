@@ -97,7 +97,10 @@ module.exports = [
 
   // Un paquete de extensiones: se instala uno y llegan varios. Para quien lo instalo son
   // una sola cosa, aunque en la barra sean iconos distintos y con otro dibujo cada uno.
-  ext('acme.suite', {}, { displayName: 'Acme Suite', extensionPack: ['acme.one', 'acme.two'] }),
+  ext('acme.suite', {
+    viewsContainers: { activitybar: [{ id: 'suiteView', title: 'Suite', icon: 'mono.svg' }] },
+    views: { suiteView: [{ id: 'suiteTree', name: 'Suite' }] },
+  }, { displayName: 'Acme Suite', icon: 'suite.png', extensionPack: ['acme.one', 'acme.two'] }),
   ext('acme.one', {
     viewsContainers: { activitybar: [{ id: 'oneView', title: 'One', icon: 'mono.svg' }] },
     views: { oneView: [{ id: 'oneTree', name: 'One' }] },
