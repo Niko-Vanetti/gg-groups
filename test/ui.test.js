@@ -883,3 +883,54 @@ test('UI: una pila deja elegir su icono y separarse', () => {
   rows[1].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'split', keys: ['c:a', 'c:b'] });
 });
+
+test('UI: una pila con todo apagado se ve apagada', () => {
+  const ui = mount({ loose: [
+    tile('c:a', { group: 'f:1', off: true }), tile('c:b', { group: 'f:1', off: true })] });
+  assert.ok(ui.stacks()[0].className.includes('off'), 'a todo color parece que sigue activa');
+});
+
+test('UI: con una sola viva, la pila no se ve apagada', () => {
+  const ui = mount({ loose: [
+    tile('c:a', { group: 'f:1' }), tile('c:b', { group: 'f:1', off: true })] });
+  assert.ok(!ui.stacks()[0].className.includes('off'));
+});
+
+test('UI: lo mismo con las ocultas', () => {
+  const ui = mount({ loose: [
+    tile('c:a', { group: 'f:1', hidden: true }), tile('c:b', { group: 'f:1', hidden: true })] });
+  assert.ok(ui.stacks()[0].className.includes('faded'));
+});
+
+test('UI: si la que da la cara no trae dibujo, se coge el del grupo', () => {
+  const ui = mount({ loose: [
+    tile('c:a', { group: 'f:1', icon: null }), tile('c:b', { group: 'f:1', icon: 'vsc://logo.png' })] });
+  const pila = ui.stacks()[0];
+  assert.ok(pila.querySelector('img'), 'una letra representando a un grupo con logos');
+  assert.strictEqual(pila.querySelector('img').src, 'vsc://logo.png');
+});
+
+test('UI: una pila de apagadas se ve apagada', () => {
+  // A todo color entre las apagadas decia lo contrario de lo que pasaba.
+  const ui = mount({ loose: [tile('c:a', { group: 'f:1', off: true }),
+                             tile('c:b', { group: 'f:1', off: true })] });
+  assert.ok(ui.stacks()[0].className.includes('off'));
+});
+
+test('UI: con una sola viva, la pila no se ve apagada', () => {
+  const ui = mount({ loose: [tile('c:a', { group: 'f:1', off: true }),
+                             tile('c:b', { group: 'f:1' })] });
+  assert.ok(!ui.stacks()[0].className.includes('off'), 'el grupo aun tiene algo cargado');
+});
+
+test('UI: una pila de ocultas se ve atenuada', () => {
+  const ui = mount({ loose: [tile('c:a', { group: 'f:1', hidden: true }),
+                             tile('c:b', { group: 'f:1', hidden: true })] });
+  assert.ok(ui.stacks()[0].className.includes('faded'));
+});
+
+test('UI: si la cara no trae dibujo, la pila coge el del primero que tenga', () => {
+  const ui = mount({ loose: [tile('c:a', { group: 'f:1', icon: null }),
+                             tile('c:b', { group: 'f:1', icon: 'vsc://logo.png' })] });
+  assert.ok(ui.stacks()[0].querySelector('img'), 'una letra representando a un grupo con logos');
+});

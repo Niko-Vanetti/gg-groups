@@ -41,6 +41,15 @@ function Anota($texto) {
 }
 $abierto = { [bool](Get-Process -Name 'Code' -ErrorAction SilentlyContinue) }
 
+# VS Code se abre desasido de esta consola. Lanzarlo con Start-Process a secas lo dejaba
+# colgando de esta ventana: al cerrarla, Windows avisa del cierre a todo lo que cuelga de
+# ella y se llevaba el editor por delante. Con `start` de cmd, quien lo abre muere en el
+# acto y VS Code se queda solo, que es como debe quedarse.
+function AbreVSCode {
+  Start-Process -FilePath 'cmd.exe' -WindowStyle Hidden `
+    -ArgumentList '/c', 'start', '""', ('"' + $CodeExe + '"')
+}
+
 if ($apagar.Count -eq 0 -and $encender.Count -eq 0) {
   Anota 'lista vacia'
   Write-Host 'No hay nada en la lista.' -ForegroundColor Yellow
@@ -108,13 +117,14 @@ if (-not $escrito) {
 if ($codigo -eq 0) {
   Write-Host '  Hecho. Abriendo VS Code otra vez...' -ForegroundColor Green
   Start-Sleep -Seconds 2
-  if (-not (& $abierto)) { Start-Process -FilePath $CodeExe }
-  Start-Sleep -Seconds 2
+  if (-not (& $abierto)) { AbreVSCode }
+  # Y esta ventana se va sin esperar: cuanto menos tiempo este, menos ocasion hay de
+  # cerrarla pensando que hace falta.
 } else {
   Anota "fallo del guion, codigo $codigo"
   Write-Host '  Algo no se pudo aplicar. Lo de arriba dice que.' -ForegroundColor Yellow
   Write-Host ''
   Write-Host '  Pulsa una tecla para abrir VS Code y cerrar esta ventana.'
   [void]$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-  if (-not (& $abierto)) { Start-Process -FilePath $CodeExe }
+  if (-not (& $abierto)) { AbreVSCode }
 }

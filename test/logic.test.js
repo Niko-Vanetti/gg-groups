@@ -1154,7 +1154,7 @@ test('el guion de espera no escribe si VS Code sigue abierto', () => {
   assert.ok(/\$avisado = \$false; continue/.test(ps), 'no reintenta si VS Code vuelve');
   assert.ok(/--force/.test(ps), 'el guion volveria a comprobar lo ya comprobado y no escribiria');
   assert.ok(/ReadKey/.test(ps), 'la ventana se cerraria sin que diera tiempo a leer el fallo');
-  assert.ok(/Start-Process\s+-FilePath\s+\$CodeExe/.test(ps), 'no lo vuelve a abrir');
+  assert.ok(/AbreVSCode/.test(ps), 'no lo vuelve a abrir');
   assert.ok(/TimeoutSeconds/.test(ps), 'esperaria para siempre si nadie cierra');
 });
 
@@ -1858,4 +1858,23 @@ test('una familia casi entera cargada no se va a Desactivadas por una sola', asy
   assert.deepStrictEqual((b.last().sections || []).map((f) => f.name), ['Passive extensions']);
   assert.strictEqual(seccion(b, 0).tiles.length, 2, 'la apagada deberia ir con su familia');
   b.restore();
+});
+
+test('la carpeta donde viven las extensiones queda autorizada al webview', () => {
+  // Una apagada sin icono en la barra no esta en el catalogo ni en extensions.all, asi que
+  // su carpeta no estaba permitida y su logo caia a una letra.
+  const b = makeBoard();
+  const tienda = path.join(ROOT, 'test', 'fixtures', 'store');
+  b.ctx.extensionUri = { fsPath: path.join(tienda, 'niko.view-groups-9.9.9') };
+  const permisos = b.roots().map((u) => String(u.fsPath || u));
+  assert.ok(permisos.includes(tienda), 'las apagadas sin catalogo seguirian sin logo');
+});
+
+test('VS Code se reabre desasido de la ventana del guion', () => {
+  // Colgando de esa consola, cerrarla se llevaba el editor por delante: Windows avisa del
+  // cierre a todo lo que cuelga de ella.
+  const ps = fs.readFileSync(path.join(ROOT, 'scripts', 'gg-apply.ps1'), 'utf8');
+  assert.ok(/function AbreVSCode/.test(ps));
+  assert.ok(/'\/c', 'start'/.test(ps), 'sin start de cmd sigue colgando de la consola');
+  assert.ok(!/Start-Process -FilePath \$CodeExe/.test(ps), 'queda una llamada de las viejas');
 });

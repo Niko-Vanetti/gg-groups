@@ -76,9 +76,13 @@
       if (done.has(k)) continue;
       done.add(k);
       const g = groups.get(k);
-      // El primero manda: la extension viene ordenada con la mas viva delante, asi que
-      // la pila toma su nombre y su dibujo.
-      out.push(g.length > 1 ? { stack: 'stack:' + k, label: x.label, icon: x.icon, mask: x.mask, tiles: g } : x);
+      // El primero manda: la extension viene ordenada con la que da la cara delante, asi
+      // que la pila toma su nombre y su dibujo. Si esa no trae dibujo se coge el del
+      // primero que tenga: una letra representando a un grupo con logos seria una pena.
+      const conDibujo = x.icon ? x : (g.find((y) => y.icon) || x);
+      out.push(g.length > 1
+        ? { stack: 'stack:' + k, label: x.label, icon: conDibujo.icon, mask: conDibujo.mask, tiles: g }
+        : x);
     }
     return out;
   }
@@ -220,9 +224,13 @@
   function stackCell(s, list, i, seccion) {
     const nextKey = list && list[i + 1] ? (list[i + 1].key || (list[i + 1].tiles || [])[0].key) : null;
     const keys = s.tiles.map((x) => x.key);
-    // Elegida cuando lo estan todas las suyas: es lo que deja un Ctrl+clic encima.
+    // Elegida cuando lo estan todas las suyas: es lo que deja un Ctrl+clic encima. Y en
+    // gris cuando lo estan todas: una pila a todo color sobre un grupo entero apagado dice
+    // lo contrario de lo que pasa.
+    const todas = (f) => s.tiles.length && s.tiles.every(f);
     const elegida = keys.length && keys.every((k) => sel.has(k));
-    const n = el('div', 'cell stack' + (open.has(s.stack) ? ' open' : '') + (elegida ? ' sel' : ''));
+    const n = el('div', 'cell stack' + (open.has(s.stack) ? ' open' : '') + (elegida ? ' sel' : '') +
+      (todas((x) => x.off) ? ' off' : '') + (todas((x) => x.hidden) ? ' faded' : ''));
     n.title = s.label + ' (' + s.tiles.length + ')';
     n.dataset.stack = s.stack;
     n.appendChild(art(s));

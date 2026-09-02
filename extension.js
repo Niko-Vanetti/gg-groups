@@ -1369,8 +1369,12 @@ class Board {
     const list = [this.ctx.extensionUri];
     for (const e of vscode.extensions.all) if (e.extensionUri) list.push(e.extensionUri);
     // Una extension apagada ya no esta en extensions.all, asi que su carpeta se quedaba
-    // fuera de los permisos del webview: el archivo del logo no cargaba y el icono caia
-    // a la inicial. El catalogo si recuerda donde estaba, y de ahi sale el permiso.
+    // fuera de los permisos del webview: el logo no cargaba y el icono caia a la inicial.
+    // Se autoriza la carpeta donde viven todas, que las cubre esten cargadas o no — el
+    // catalogo solo sabia de las que alguna vez tuvieron icono en la barra, y las pasivas
+    // apagadas seguian saliendo con una letra.
+    const dir = extensionsDir(this.ctx);
+    if (dir) list.push(vscode.Uri.file(dir));
     for (const o of this.seen) {
       if (o.iconPath) list.push(vscode.Uri.joinPath(vscode.Uri.file(o.iconPath), '..'));
     }
