@@ -193,6 +193,21 @@ async function findPython() {
  * si algo va mal —por ejemplo, que VS Code vuelva a abrirse antes de tiempo— el aviso no
  * lo ve nadie y parece que la extension no hizo nada. Con `start` hay ventana de verdad.
  */
+/**
+ * El entorno con el que se lanza el proceso de fuera, sin lo que VS Code le pone al host
+ * de extensiones. ELECTRON_RUN_AS_NODE es el que importa: con esa variable puesta, Code.exe
+ * arranca como Node y no abre el editor — se hereda hasta el nieto, asi que la reapertura
+ * no ocurria nunca. Las VSCODE_* apuntan a la instancia que se acaba de cerrar.
+ */
+function cleanEnv(env) {
+  const fuera = {};
+  for (const [k, v] of Object.entries(env || {})) {
+    if (/^(ELECTRON_|VSCODE_)/.test(k)) continue;
+    fuera[k] = v;
+  }
+  return fuera;
+}
+
 function restartCommand(plan) {
   const { dir, python, disable, enable, codeExe, log } = plan;
   const script = `${dir}/gg-extensions.py`;
@@ -205,7 +220,7 @@ function restartCommand(plan) {
     if (apagar) ps.push('-Disable', apagar);
     if (encender) ps.push('-Enable', encender);
     if (log) ps.push('-Log', log);
-    return { exe: 'cmd.exe', args: ['/c', 'start', 'GG Groups', 'powershell.exe', ...ps] };
+    return { exe: 'cmd.exe', args: ['/c', 'start', 'GG Groups', 'powershell.exe', ...ps], env: cleanEnv(process.env) };
   }
   // En macOS y Linux no hay ventana que abrir: el mismo bucle de espera, en sh.
   const espera = process.platform === 'darwin'
@@ -217,6 +232,7 @@ function restartCommand(plan) {
   return {
     exe: 'sh',
     args: ['-c', `${espera}; sleep 1; ${pasos.join('; ')}; "${codeExe}" || true`],
+    env: cleanEnv(process.env),
   };
 }
 
@@ -658,7 +674,8 @@ class Board {
       await vscode.workspace.fs.createDirectory(this.ctx.globalStorageUri);
     } catch { /* si ya existe, mejor */ }
     try {
-      const hijo = spawn(plan.exe, plan.args, { detached: true, stdio: 'ignore', windowsHide: false });
+      const hijo = spawn(plan.exe, plan.args,
+        { detached: true, stdio: 'ignore', windowsHide: false, env: plan.env });
       hijo.unref();
     } catch (e) {
       vscode.window.showErrorMessage(t('Could not apply the list: {0}', (e && e.message) || String(e)));
@@ -1245,5 +1262,5 @@ module.exports = {
   activate, deactivate() {},
   Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale,
   NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
-  restartCommand, findPython, modKey,
+  restartCommand, findPython, modKey, cleanEnv,
 };

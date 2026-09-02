@@ -40,7 +40,7 @@ mod._compile(fs.readFileSync(path.join(ROOT, 'extension.js'), 'utf8'), 'extensio
 Module._load = orig;
 
 const { Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale, NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
-  restartCommand, modKey } = mod.exports;
+  restartCommand, modKey, cleanEnv } = mod.exports;
 const CTX = { extensionUri: { fsPath: ROOT } };
 const tiles = discover(CTX);
 // Iconos que el usuario puede mover: los nativos van bloqueados y no valen para estas pruebas.
@@ -1412,4 +1412,34 @@ test('en Mac el texto dice Cmd, porque alli Ctrl+clic es el clic derecho', () =>
   Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
   assert.strictEqual(modKey(frase), frase, 'fuera de Mac la tecla es Ctrl');
   Object.defineProperty(process, 'platform', { value: real, configurable: true });
+});
+
+test('el proceso de fuera no hereda lo que convierte a Code.exe en Node', () => {
+  // Con ELECTRON_RUN_AS_NODE puesto, Code.exe arranca como interprete y no abre el
+  // editor. El host de extensiones la lleva puesta, y el hijo la heredaba: por eso el
+  // guion aplicaba los cambios y luego VS Code no volvia.
+  const limpio = cleanEnv({
+    PATH: 'C:/bin', ELECTRON_RUN_AS_NODE: '1', ELECTRON_NO_ATTACH_CONSOLE: '1',
+    VSCODE_PID: '123', VSCODE_IPC_HOOK: 'x', APPDATA: 'C:/datos',
+  });
+  assert.strictEqual(limpio.ELECTRON_RUN_AS_NODE, undefined, 'Code.exe no abriria el editor');
+  assert.strictEqual(limpio.VSCODE_IPC_HOOK, undefined, 'apuntaria a la instancia ya cerrada');
+  assert.strictEqual(limpio.VSCODE_PID, undefined);
+  // Y lo que hace falta para encontrar python y la base de estado se queda.
+  assert.strictEqual(limpio.PATH, 'C:/bin');
+  assert.strictEqual(limpio.APPDATA, 'C:/datos');
+});
+
+test('la orden lleva su entorno limpio, no el de esta ventana', () => {
+  const plan = restartCommand({
+    dir: 'C:/ext/scripts', python: 'py', disable: ['a.b'], enable: [], codeExe: 'C:/Code.exe',
+  });
+  assert.ok(plan.env, 'sin entorno propio hereda el del host y no reabre VS Code');
+  assert.strictEqual(plan.env.ELECTRON_RUN_AS_NODE, undefined);
+});
+
+test('el guion tambien se limpia por su cuenta, por si se ejecuta a mano', () => {
+  const ps = fs.readFileSync(path.join(ROOT, 'scripts', 'gg-apply.ps1'), 'utf8');
+  assert.ok(/ELECTRON_\*/.test(ps) && /VSCODE_\*/.test(ps),
+    'lanzado desde una terminal de VS Code heredaria lo mismo');
 });

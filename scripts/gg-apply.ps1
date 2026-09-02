@@ -23,6 +23,14 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
+
+# Si esta ventana hereda el entorno del host de extensiones, Code.exe arranca como Node y
+# no abre el editor: ELECTRON_RUN_AS_NODE lo convierte en un interprete. Las VSCODE_*
+# apuntan ademas a la instancia que se acaba de cerrar. Se limpian antes de nada, para que
+# valga igual si alguien ejecuta este guion desde una terminal de VS Code.
+Get-ChildItem Env: | Where-Object { $_.Name -like 'ELECTRON_*' -or $_.Name -like 'VSCODE_*' } |
+  ForEach-Object { Remove-Item ('Env:' + $_.Name) -ErrorAction SilentlyContinue }
+
 $apagar = @($Disable -split ',' | Where-Object { $_ })
 $encender = @($Enable -split ',' | Where-Object { $_ })
 
