@@ -1818,3 +1818,44 @@ test('con una sola no se pregunta nada: no hay entre que elegir', async () => {
   assert.strictEqual(preguntado, false);
   stub.window.__pick = null;
 });
+
+test('una apagada sigue en su familia, no se queda sola', async () => {
+  // Se reconstruye aparte y se agrupaba con otra regla: nunca coincidia con su paquete.
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.one');
+  await b.refresh();
+  const uno = b.tiles.find((x) => x.key === 'c:oneView');
+  const suite = b.tiles.find((x) => x.key === 'c:suiteView');
+  assert.strictEqual(uno.off, true, 'falta la pieza de prueba');
+  assert.strictEqual(uno.group, suite.group, 'apagada se quedo fuera de su propio paquete');
+  b.restore();
+});
+
+test('dos iconos de una misma extension apagada son uno solo', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.tasks');
+  await b.refresh();
+  const suyas = b.tiles.filter((x) => x.ext === 'acme.tasks');
+  assert.ok(suyas.length >= 2 && suyas.every((x) => x.off));
+  assert.strictEqual(new Set(suyas.map((x) => x.group)).size, 1, 'salian repetidas');
+  b.restore();
+});
+
+test('una familia casi entera cargada no se va a Desactivadas por una sola', async () => {
+  // Es el caso de Java: seis pasivas cargandose y una apagada. Una pasiva esta viva; una
+  // apagada no, asi que manda la pasiva y la familia se queda entre las pasivas.
+  const b = switchBoard(['extension.open'], { 'viewGroups.showHidden': true });
+  await b.refresh();
+  b.tiles = [
+    { key: 'x:acme.quieta', ext: 'acme.quieta', label: 'Quieta', cmd: null, icon: null,
+      passive: true, group: 'fam:acme.quieta' },
+    { key: 'c:apagada', ext: 'acme.apagada', label: 'Apagada', cmd: null, icon: null,
+      off: true, group: 'fam:acme.quieta' },
+  ];
+  b.render();
+  assert.deepStrictEqual((b.last().sections || []).map((f) => f.name), ['Passive extensions']);
+  assert.strictEqual(seccion(b, 0).tiles.length, 2, 'la apagada deberia ir con su familia');
+  b.restore();
+});

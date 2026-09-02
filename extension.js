@@ -552,6 +552,68 @@ function pickIcon(ctx, base, marketplace, sidebar) {
  * contenedor, los contenedores de depuracion y las extensiones sin icono (temas, idiomas).
  * Un manifiesto raro no puede tumbar la extension: cada uno va en su propio try.
  */
+
+/**
+ * Reparte las baldosas en familias. Se aplica sobre la lista entera —incluidas las apagadas,
+ * que se reconstruyen aparte— porque agruparlas con otra regla las dejaba siempre solas:
+ * dos iconos de la misma extension apagada salian uno al lado del otro, y una apagada nunca
+ * se juntaba con su paquete.
+ */
+function assignGroups(unicas, instaladas, juntadas, separadas) {
+  // Una familia por producto. Se unen tres cosas: lo que un paquete trajo consigo, lo
+  // que comparte dibujo, y lo que el usuario haya juntado a mano. Lo que el usuario
+  // separo a mano manda sobre las dos primeras.
+  const sueltas = new Set((separadas || []).map((x) => String(x).toLowerCase()));
+  const fam = familias();
+  const suelta = (id) => sueltas.has(String(id).toLowerCase());
+  for (const e of instaladas) {
+    if (suelta(e.ext)) continue;
+    for (const hijo of e.pack || []) if (!suelta(hijo)) fam.unir(e.ext.toLowerCase(), String(hijo).toLowerCase());
+  }
+  for (const e of vscode.extensions.all) {
+    const pack = (e.packageJSON || {}).extensionPack;
+    if (!Array.isArray(pack) || suelta(e.id)) continue;
+    for (const hijo of pack) if (!suelta(hijo)) fam.unir(String(e.id).toLowerCase(), String(hijo).toLowerCase());
+  }
+  // El dibujo: lo que se ve igual va junto aunque se llame distinto.
+  const porDibujo = new Map();
+  for (const x of unicas) {
+    if (x.native || !x.ext || x.ext === 'vscode' || suelta(x.ext)) continue;
+    const d = iconGroup(x.icon, x.label);
+    if (porDibujo.has(d)) fam.unir(porDibujo.get(d), x.ext.toLowerCase());
+    else porDibujo.set(d, x.ext.toLowerCase());
+  }
+  for (const [a, b] of juntadas || []) {
+    if (!suelta(a) && !suelta(b)) fam.unir(String(a).toLowerCase(), String(b).toLowerCase());
+  }
+
+  // La cara del grupo: la que trajo a las demas. No vale "la instalada primero" a secas —
+  // en Java el paquete llego despues que dos de sus miembros—, asi que gana la que mas
+  // arrastro consigo, y entre iguales la mas antigua.
+  const trajo = new Map();
+  const cuando = new Map();
+  for (const e of instaladas) {
+    cuando.set(e.ext.toLowerCase(), e.installed || 0);
+    if ((e.pack || []).length) trajo.set(e.ext.toLowerCase(), e.pack.length);
+  }
+  for (const e of vscode.extensions.all) {
+    const pack = (e.packageJSON || {}).extensionPack;
+    if (Array.isArray(pack) && pack.length) {
+      trajo.set(String(e.id).toLowerCase(), Math.max(trajo.get(String(e.id).toLowerCase()) || 0, pack.length));
+    }
+  }
+
+  for (const x of unicas) {
+    const id = String(x.ext || '').toLowerCase();
+    // El bloque nativo y lo que es de VS Code van fijos y nunca se agrupan.
+    x.group = x.native || !x.ext || x.ext === 'vscode'
+      ? 'solo:' + x.key
+      : suelta(x.ext) ? 'ext:' + id : 'fam:' + fam.raiz(id);
+    x.brought = trajo.get(id) || 0;
+    x.installed = cuando.get(id) || 0;
+  }
+}
+
 function discover(ctx, juntadas, separadas) {
   const tiles = NATIVE.map(([key, cmd, name, icon]) => ({
     key, cmd, label: t(name), owner: 'Visual Studio Code', ext: 'vscode', native: true,
@@ -614,58 +676,7 @@ function discover(ctx, juntadas, separadas) {
   const seen = new Set();
   const unicas = tiles.filter((x) => !seen.has(x.key) && seen.add(x.key));
 
-  // Una familia por producto. Se unen tres cosas: lo que un paquete trajo consigo, lo
-  // que comparte dibujo, y lo que el usuario haya juntado a mano. Lo que el usuario
-  // separo a mano manda sobre las dos primeras.
-  const sueltas = new Set((separadas || []).map((x) => String(x).toLowerCase()));
-  const fam = familias();
-  const suelta = (id) => sueltas.has(String(id).toLowerCase());
-  for (const e of instaladas) {
-    if (suelta(e.ext)) continue;
-    for (const hijo of e.pack || []) if (!suelta(hijo)) fam.unir(e.ext.toLowerCase(), String(hijo).toLowerCase());
-  }
-  for (const e of vscode.extensions.all) {
-    const pack = (e.packageJSON || {}).extensionPack;
-    if (!Array.isArray(pack) || suelta(e.id)) continue;
-    for (const hijo of pack) if (!suelta(hijo)) fam.unir(String(e.id).toLowerCase(), String(hijo).toLowerCase());
-  }
-  // El dibujo: lo que se ve igual va junto aunque se llame distinto.
-  const porDibujo = new Map();
-  for (const x of unicas) {
-    if (x.native || !x.ext || x.ext === 'vscode' || suelta(x.ext)) continue;
-    const d = iconGroup(x.icon, x.label);
-    if (porDibujo.has(d)) fam.unir(porDibujo.get(d), x.ext.toLowerCase());
-    else porDibujo.set(d, x.ext.toLowerCase());
-  }
-  for (const [a, b] of juntadas || []) {
-    if (!suelta(a) && !suelta(b)) fam.unir(String(a).toLowerCase(), String(b).toLowerCase());
-  }
-
-  // La cara del grupo: la que trajo a las demas. No vale "la instalada primero" a secas —
-  // en Java el paquete llego despues que dos de sus miembros—, asi que gana la que mas
-  // arrastro consigo, y entre iguales la mas antigua.
-  const trajo = new Map();
-  const cuando = new Map();
-  for (const e of instaladas) {
-    cuando.set(e.ext.toLowerCase(), e.installed || 0);
-    if ((e.pack || []).length) trajo.set(e.ext.toLowerCase(), e.pack.length);
-  }
-  for (const e of vscode.extensions.all) {
-    const pack = (e.packageJSON || {}).extensionPack;
-    if (Array.isArray(pack) && pack.length) {
-      trajo.set(String(e.id).toLowerCase(), Math.max(trajo.get(String(e.id).toLowerCase()) || 0, pack.length));
-    }
-  }
-
-  for (const x of unicas) {
-    const id = String(x.ext || '').toLowerCase();
-    // El bloque nativo y lo que es de VS Code van fijos y nunca se agrupan.
-    x.group = x.native || !x.ext || x.ext === 'vscode'
-      ? 'solo:' + x.key
-      : suelta(x.ext) ? 'ext:' + id : 'fam:' + fam.raiz(id);
-    x.brought = trajo.get(id) || 0;
-    x.installed = cuando.get(id) || 0;
-  }
+  assignGroups(unicas, instaladas, juntadas, separadas);
   return unicas;
 }
 
@@ -847,16 +858,13 @@ class Board {
     const vistos = new Set(live.map((x) => x.key));
     const dormidas = this.off
       .filter((o) => !vistos.has(o.key))
-      .map((o) => {
-        const icon = o.iconPath ? { uri: vscode.Uri.file(o.iconPath), mask: !!o.mask } : null;
-        // El grupo se recalcula: sin el, las apagadas de una misma extension salian sueltas
-        // una al lado de otra en vez de juntarse, que es justo donde mas estorban.
-        return {
-          key: o.key, cmd: o.cmd, label: o.label, owner: o.owner, ext: o.ext, off: true,
-          icon, group: iconGroup(icon, o.label),
-        };
-      });
+      .map((o) => ({
+        key: o.key, cmd: o.cmd, label: o.label, owner: o.owner, ext: o.ext, off: true,
+        icon: o.iconPath ? { uri: vscode.Uri.file(o.iconPath), mask: !!o.mask } : null,
+      }));
     this.tiles = [...live, ...dormidas];
+    // Con las apagadas ya dentro, para que entren en la misma familia que las demas.
+    assignGroups(this.tiles, installedExtensions(this.ctx), this.merged, this.split);
     this.render();
   }
 
@@ -1377,7 +1385,9 @@ class Board {
   layout() {
     const folders = this.folders;
     const hidden = this.hidden;
-    const rango = (x) => (x.off ? 2 : x.passive ? 3 : hidden.has(x.key) ? 1 : 0);
+    // Una pasiva esta cargada; una apagada no. Asi que entre las dos manda la pasiva, y
+    // una familia con seis pasivas y una apagada no se va entera a Desactivadas.
+    const rango = (x) => (x.off ? 3 : x.passive ? 2 : hidden.has(x.key) ? 1 : 0);
 
     const grupos = new Map();
     for (const x of this.visible()) {
@@ -1414,8 +1424,8 @@ class Board {
         || suOrden(a) - suOrden(b));
       const grupo = { lider, tiles: lista };
       const r = rango(grupo.lider);
-      if (r === 3) fuera.passive.push(grupo);
-      else if (r === 2) fuera.off.push(grupo);
+      if (r === 3) fuera.off.push(grupo);
+      else if (r === 2) fuera.passive.push(grupo);
       else {
         const carpeta = enCarpeta.get(grupo.lider.key);
         if (carpeta && fuera.folders.has(carpeta)) fuera.folders.get(carpeta).push(grupo);
@@ -1794,6 +1804,6 @@ module.exports = {
   activate, deactivate() {},
   Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale,
   NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
-  restartCommand, findPython, modKey, cleanEnv, installedExtensions, displayName,
+  restartCommand, findPython, modKey, cleanEnv, installedExtensions, displayName, assignGroups,
   marketplaceQuery, newerVersion, parseUpdates, iconGroup, familias,
 };
