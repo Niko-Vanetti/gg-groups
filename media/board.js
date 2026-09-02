@@ -29,8 +29,15 @@
     .forEach((n) => n.classList.remove('over', 'ins-before', 'ins-after'));
   const folderOf = (key) => state.folders.find((f) => (f.tiles || []).some((x) => x.key === key));
 
-  /** Todas las baldosas pintadas, sin importar en que carpeta esten. */
-  const allTiles = () => (state.folders || []).flatMap((f) => f.tiles || []).concat(state.loose || []);
+  /**
+   * Todas las baldosas pintadas, vengan de donde vengan. Dejarse las secciones fuera hacia
+   * que al repintar se descartara como 'ya no existe' todo lo elegido ahi dentro: con el
+   * ojo abierto, donde vive casi todo, elegir con Ctrl no duraba ni un repintado.
+   */
+  const allTiles = () => []
+    .concat(...(state.folders || []).map((f) => f.tiles || []))
+    .concat(...(state.sections || []).map((f) => f.tiles || []))
+    .concat(state.loose || []);
   const selectedTiles = () => allTiles().filter((x) => sel.has(x.key));
 
   function toggleSel(keys) {

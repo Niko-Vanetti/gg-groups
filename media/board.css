@@ -219,7 +219,9 @@ body {
 
 /* Bloque nativo: fijo, sin arrastre. */
 .cell.locked { cursor: default; }
-.cell.folder.locked .folder-name { opacity: .7; }
+/* Nativo, Pasivas y Desactivadas son cajones del sistema: se leen todos igual. */
+.cell.folder.locked .folder-name,
+.cell.folder.section .folder-name { opacity: .6; font-style: italic; }
 
 /* Extension apagada: no se carga al arrancar VS Code. Se ve, pero en gris. */
 .cell.off img, .cell.off .glyph, .cell.off .mask { opacity: .3; filter: grayscale(1); }
@@ -285,5 +287,3 @@ body {
   border: 1px solid var(--vscode-sideBar-background, #181818);
 }
 
-/* Secciones del final: son un cajon, no una carpeta que el usuario haya hecho. */
-.cell.folder.section .folder-name { opacity: .6; font-style: italic; }

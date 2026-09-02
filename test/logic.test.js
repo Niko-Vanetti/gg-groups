@@ -1512,13 +1512,12 @@ const seccion = (b, i) => (b.last().sections || [])[i];
 test('una apagada se va a la seccion del final, no al fondo de su fila', async () => {
   const b = switchBoard(['extension.open']);
   await b.refresh();
-  b.desactivar('acme.build');
+  b.desactivar('acme.notes');
   await b.refresh();
-  assert.ok(!b.last().loose.some((x) => x.key === 'c:buildView'), 'se quedo entre las vivas');
+  assert.ok(!b.last().loose.some((x) => x.key === 'c:notesView'), 'se quedo entre las vivas');
   const desactivadas = (b.last().sections || []).find((f) => f.section);
   assert.ok(desactivadas, 'no hay seccion de desactivadas');
-  assert.ok(desactivadas.tiles.some((x) => x.key === 'c:buildView'));
-  assert.strictEqual(desactivadas.tiles.find((x) => x.key === 'c:buildView').off, true);
+  assert.strictEqual(desactivadas.tiles.find((x) => x.key === 'c:notesView').off, true);
   b.restore();
 });
 
@@ -1526,7 +1525,7 @@ test('la seccion de desactivadas va la ultima de todo', async () => {
   const b = switchBoard(['extension.open']);
   b.store.set('viewGroups.showHidden', true);
   await b.refresh();
-  b.desactivar('acme.build');
+  b.desactivar('acme.notes');
   await b.refresh();
   const nombres = (b.last().sections || []).map((f) => f.name);
   assert.strictEqual(nombres[nombres.length - 1], 'Disabled', 'lo apagado debe cerrar el tablero');
@@ -1536,25 +1535,25 @@ test('la seccion de desactivadas va la ultima de todo', async () => {
 test('dentro de una carpeta, apagarla tambien la saca a la seccion', async () => {
   const b = switchBoard(['extension.open']);
   await b.refresh();
-  b.store.set('viewGroups.folders', [{ name: 'A', keys: ['c:notesView', 'c:buildView'] }]);
-  b.desactivar('acme.build');
+  b.store.set('viewGroups.folders', [{ name: 'A', keys: ['c:notesView', 'c:keysView'] }]);
+  b.desactivar('acme.notes');
   await b.refresh();
   const carpeta = b.last().folders.find((f) => f.name === 'A');
-  assert.deepStrictEqual(carpeta.tiles.map((x) => x.key), ['c:notesView']);
-  assert.ok(seccion(b, 0).tiles.some((x) => x.key === 'c:buildView'));
+  assert.deepStrictEqual(carpeta.tiles.map((x) => x.key), ['c:keysView']);
+  assert.ok(seccion(b, 0).tiles.some((x) => x.key === 'c:notesView'));
   b.restore();
 });
 
 test('al volver a cargarse sale de la seccion y recupera su sitio', async () => {
   const b = switchBoard(['extension.open']);
   await b.refresh();
-  const sitio = b.last().loose.findIndex((x) => x.key === 'c:buildView');
-  b.desactivar('acme.build');
+  const sitio = b.last().loose.findIndex((x) => x.key === 'c:notesView');
+  b.desactivar('acme.notes');
   await b.refresh();
-  assert.ok(!b.last().loose.some((x) => x.key === 'c:buildView'));
+  assert.ok(!b.last().loose.some((x) => x.key === 'c:notesView'));
   b.reactivar();
   await b.refresh();
-  assert.strictEqual(b.last().loose.findIndex((x) => x.key === 'c:buildView'), sitio);
+  assert.strictEqual(b.last().loose.findIndex((x) => x.key === 'c:notesView'), sitio);
   assert.deepStrictEqual(b.last().sections, []);
   b.restore();
 });
@@ -1647,5 +1646,31 @@ test('si toda la familia esta apagada, el grupo entero va a la seccion', async (
   await b.refresh();
   const dentro = seccion(b, 0).tiles.map((x) => x.key);
   assert.ok(dentro.includes('c:buildView') && dentro.includes('c:twinView'));
+  b.restore();
+});
+
+test('las apagadas de una misma extension se juntan en la seccion', async () => {
+  // Salian sueltas una al lado de otra: la baldosa dormida se reconstruia sin su grupo.
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  const suyas = b.tiles.filter((x) => x.ext === 'acme.tasks');
+  assert.ok(suyas.length >= 2, 'falta la pieza de prueba');
+  b.desactivar('acme.tasks');
+  await b.refresh();
+  const dormidas = b.tiles.filter((x) => x.ext === 'acme.tasks');
+  assert.strictEqual(dormidas.length, suyas.length);
+  assert.strictEqual(new Set(dormidas.map((x) => x.group)).size, 1, 'no se juntarian');
+  assert.ok(dormidas[0].group, 'la baldosa dormida se quedo sin grupo');
+  b.restore();
+});
+
+test('el Explorador remoto es de quien lo llena, no un icono de fabrica', async () => {
+  // Antes salia dos veces —como icono suelto y como pasiva— y no habia forma de apagarlo.
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  const remoto = b.tiles.find((x) => x.key === 'k:remote');
+  if (!remoto) return;                       // esta instalacion no lo trae
+  assert.notStrictEqual(remoto.ext, 'vscode',
+    'siendo de fabrica no se podria apagar, y se repetiria entre las pasivas');
   b.restore();
 });

@@ -836,3 +836,20 @@ test('UI: sin grupo se sigue apilando por el nombre, como antes', () => {
   const ui = mount({ loose: [tile('c:a', { label: 'Claude' }), tile('c:b', { label: 'Claude' })] });
   assert.strictEqual(ui.stacks().length, 1);
 });
+
+test('UI: Ctrl+clic elige tambien dentro de una seccion', () => {
+  const ui = mount({ sections: [{ name: 'Desactivadas', section: true,
+    tiles: [tile('c:z', { off: true }), tile('c:y', { off: true })] }] });
+  ui.folders()[0].onclick();
+  const celdas = [...ui.doc.querySelectorAll('.kids .cell')];
+  celdas[0].onclick({ ctrlKey: true });
+  assert.strictEqual(ui.doc.querySelectorAll('.cell.sel').length, 1, 'no se pudo elegir ahi');
+});
+
+test('UI: Ctrl+clic elige una pila entera dentro de una seccion', () => {
+  const ui = mount({ sections: [{ name: 'Desactivadas', section: true, tiles: [
+    tile('c:z', { off: true, group: 'i:x' }), tile('c:y', { off: true, group: 'i:x' })] }] });
+  ui.folders()[0].onclick();
+  ui.doc.querySelector('.kids .cell.stack').onclick({ ctrlKey: true });
+  assert.strictEqual(ui.board().selState().count, 2);
+});

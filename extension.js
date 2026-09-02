@@ -67,10 +67,16 @@ const NATIVE_KEYS = NATIVE.map(([k]) => k);
  * ningun manifiesto: el chat es el caso claro. Solo se anaden si nadie los aporta ya
  * y si su comando existe de verdad en esta instalacion.
  */
+/**
+ * Iconos que VS Code pone en la barra sin pasar por el manifiesto de nadie. El cuarto dato
+ * es la extension que los llena cuando la hay: el Explorador remoto es un contenedor del
+ * propio VS Code, pero quien lo alimenta es una extension instalada. Sin ese apunte salia
+ * dos veces —una aqui y otra entre las pasivas— y encima no habia forma de apagarla.
+ */
 const CORE = [
   ['k:chat', 'workbench.action.chat.open', 'Chat', 'copilot'],
   ['k:testing', 'workbench.view.testing', 'Testing', 'beaker'],
-  ['k:remote', 'workbench.view.remote', 'Remote Explorer', 'remote-explorer'],
+  ['k:remote', 'workbench.view.remote', 'Remote Explorer', 'remote-explorer', 'ms-vscode.remote-explorer'],
 ];
 
 /**
@@ -548,9 +554,16 @@ function discover(ctx) {
   }
 
   // Y lo que VS Code pone en las barras sin pasar por un manifiesto, si aun falta.
-  for (const [key, cmd, name, icon] of CORE) {
+  for (const [key, cmd, name, icon, backing] of CORE) {
     if (tiles.some((x) => x.cmd === cmd)) continue;
-    tiles.push({ key, cmd, label: t(name), owner: 'Visual Studio Code', ext: 'vscode', icon: codiconIcon(ctx, icon) });
+    // Si quien lo llena es una extension instalada, el icono es suyo: asi se puede apagar,
+    // y no vuelve a aparecer ademas en la lista de pasivas.
+    const suya = backing && vscode.extensions.all.find((e) => String(e.id).toLowerCase() === backing);
+    tiles.push({
+      key, cmd, label: t(name), icon: codiconIcon(ctx, icon),
+      owner: suya ? label((suya.packageJSON || {}).displayName, suya.id) : 'Visual Studio Code',
+      ext: suya ? suya.id : 'vscode',
+    });
   }
 
   // Las pasivas: instaladas desde la tienda pero sin icono en ninguna barra lateral. No
@@ -753,10 +766,15 @@ class Board {
     const vistos = new Set(live.map((x) => x.key));
     const dormidas = this.off
       .filter((o) => !vistos.has(o.key))
-      .map((o) => ({
-        key: o.key, cmd: o.cmd, label: o.label, owner: o.owner, ext: o.ext, off: true,
-        icon: o.iconPath ? { uri: vscode.Uri.file(o.iconPath), mask: !!o.mask } : null,
-      }));
+      .map((o) => {
+        const icon = o.iconPath ? { uri: vscode.Uri.file(o.iconPath), mask: !!o.mask } : null;
+        // El grupo se recalcula: sin el, las apagadas de una misma extension salian sueltas
+        // una al lado de otra en vez de juntarse, que es justo donde mas estorban.
+        return {
+          key: o.key, cmd: o.cmd, label: o.label, owner: o.owner, ext: o.ext, off: true,
+          icon, group: iconGroup(icon, o.label),
+        };
+      });
     this.tiles = [...live, ...dormidas];
     this.render();
   }

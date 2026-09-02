@@ -95,6 +95,10 @@ module.exports = [
     },
   }, { displayName: 'Dev Tools', icon: 'logo.png' }),
 
+  // Llena un contenedor que pone el propio VS Code: sin vistas propias en la barra, pero
+  // es suyo el icono del Explorador remoto. No debe salir ademas como pasiva.
+  ext('ms-vscode.remote-explorer', {}, { displayName: 'Remote Explorer' }),
+
   // Ni una extension sin vistas (un tema, un idioma) ni el propio tablero se listan.
   ext('acme.theme', {}, { displayName: 'Theme' }),
   ext('niko.view-groups', {
