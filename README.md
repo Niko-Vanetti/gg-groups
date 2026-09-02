@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-196%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-203%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -40,6 +40,7 @@ obvious way: drag one icon onto another, name the folder, done.
 | **Hide the noise** | Right-click → hide. The eye at the bottom brings them all back |
 | **Work in groups** | **Ctrl+click** picks several: they drag together, turn off together, uninstall together |
 | **Disabled ones stay visible** | Turn one off and it greys out at the bottom instead of vanishing, one click from coming back |
+| **Passive extensions** | Installed ones that contribute no bar icon — C/C++, YAML, WSL… — appear behind the eye, with their store name and logo |
 | **Native block, locked** | Explorer, Search, Source Control, Run and Debug, Extensions — pinned on top, in VS Code's own order, indestructible |
 
 </div>
@@ -145,8 +146,17 @@ clipboard to run by hand.
 
 ## Design decisions worth knowing
 
-**It mirrors your sidebars, not your extension list.** A theme or a language pack has no
-icon, so it isn't here. Neither is anything in the bottom panel — that's not a sidebar.
+**It mirrors your sidebars, and behind the eye, everything else.** The board is the bar: only
+what has its own icon shows up front. Whatever you installed that contributes none — C/C++,
+YAML, WSL, a theme — lives behind the eye as a **passive extension**, with its store name and
+logo, and can be turned off, on and uninstalled like the rest. The bottom panel stays out:
+that's not a sidebar.
+
+The list comes from VS Code's own registry (`extensions.json`, in the folder this extension
+lives in) rather than from the loaded extensions — disabled ones aren't there, and those are
+exactly the ones you need to be able to switch back on. If that folder can't be derived,
+there are simply no passive extensions: guessing a path would mean reading files that aren't
+ours to read.
 
 **Dead icons are filtered out.** Views behind an unmet `when` clause, containers with no
 views at all, and commands VS Code hasn't registered never make it to the board. Where a
@@ -183,7 +193,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 196 tests, no VS Code needed
+npm test      # 203 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

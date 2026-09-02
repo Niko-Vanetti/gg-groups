@@ -40,7 +40,7 @@ mod._compile(fs.readFileSync(path.join(ROOT, 'extension.js'), 'utf8'), 'extensio
 Module._load = orig;
 
 const { Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale, NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
-  restartCommand, modKey, cleanEnv } = mod.exports;
+  restartCommand, modKey, cleanEnv, installedExtensions, displayName } = mod.exports;
 const CTX = { extensionUri: { fsPath: ROOT } };
 const tiles = discover(CTX);
 // Iconos que el usuario puede mover: los nativos van bloqueados y no valen para estas pruebas.
@@ -1442,4 +1442,53 @@ test('el guion tambien se limpia por su cuenta, por si se ejecuta a mano', () =>
   const ps = fs.readFileSync(path.join(ROOT, 'scripts', 'gg-apply.ps1'), 'utf8');
   assert.ok(/ELECTRON_\*/.test(ps) && /VSCODE_\*/.test(ps),
     'lanzado desde una terminal de VS Code heredaria lo mismo');
+});
+
+// --- extensiones pasivas: instaladas, pero sin icono en ninguna barra ---
+
+const TIENDA = { fsPath: path.join(ROOT, 'test', 'fixtures', 'store', 'niko.view-groups-9.9.9') };
+
+test('se leen las instaladas del registro de VS Code, no de las cargadas', () => {
+  // extensions.all no trae las apagadas, y son justo las que hay que poder reencender.
+  const lista = installedExtensions({ extensionUri: TIENDA });
+  assert.deepStrictEqual(lista.map((o) => o.ext).sort(),
+    ['acme.build', 'acme.passive-one', 'acme.passive-two', 'acme.sinnombre']);
+});
+
+test('una carpeta que ya no esta se omite, no rompe la lista', () => {
+  const lista = installedExtensions({ extensionUri: TIENDA });
+  assert.ok(!lista.some((o) => o.ext === 'acme.fantasma'), 'se invento una que no esta');
+});
+
+test('sin saber donde vive, no se sale a buscar la carpeta de nadie', () => {
+  // Adivinar una ruta seria leer archivos del usuario que no nos corresponden.
+  assert.deepStrictEqual(installedExtensions({}), []);
+  assert.deepStrictEqual(installedExtensions(null), []);
+});
+
+test('sale el nombre de la tienda, con los %marcadores% resueltos', () => {
+  const lista = installedExtensions({ extensionUri: TIENDA });
+  const dosa = lista.find((o) => o.ext === 'acme.passive-two');
+  assert.strictEqual(dosa.label, 'Passive Two', 'se quedaria un %ext.title% a la vista');
+  assert.strictEqual(lista.find((o) => o.ext === 'acme.passive-one').label, 'Passive One');
+  // Sin displayName, el nombre tecnico es mejor que nada.
+  assert.strictEqual(lista.find((o) => o.ext === 'acme.sinnombre').label, 'sinnombre');
+});
+
+test('el nombre sigue el idioma del tablero', () => {
+  const dir = path.join(ROOT, 'test', 'fixtures', 'store', 'acme.passive-two-2.1.0');
+  const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  assert.strictEqual(displayName(dir, pkg), 'Passive Two');
+});
+
+test('llevan su logo de verdad, no una inicial', () => {
+  const lista = installedExtensions({ extensionUri: TIENDA });
+  const uno = lista.find((o) => o.ext === 'acme.passive-one');
+  assert.ok(uno.icon && uno.icon.uri.fsPath.endsWith('logo.png'));
+  assert.ok(!lista.find((o) => o.ext === 'acme.sinnombre').icon, 'invento un icono que no hay');
+});
+
+test('y su editor, para distinguir dos que se llamen parecido', () => {
+  const lista = installedExtensions({ extensionUri: TIENDA });
+  assert.strictEqual(lista.find((o) => o.ext === 'acme.passive-one').owner, 'ACME');
 });

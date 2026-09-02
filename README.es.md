@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-196%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-203%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -40,6 +40,7 @@ que creas de la forma evidente: arrastras un icono sobre otro, le pones nombre, 
 | **Esconder el ruido** | Clic derecho → ocultar. El ojo del pie los devuelve todos |
 | **Trabajar por grupos** | **Ctrl+clic** elige varios: se arrastran juntos, se apagan juntos, se desinstalan juntos |
 | **Las apagadas siguen a la vista** | Al desactivar una queda en gris al fondo en vez de desaparecer, a un clic de volver |
+| **Extensiones pasivas** | Las instaladas que no aportan icono a ninguna barra —C/C++, YAML, WSL…— salen al abrir el ojo, con su nombre y su logo de la tienda |
 | **Bloque nativo, blindado** | Explorador, Buscar, Control de código fuente, Ejecutar y depurar, Extensiones — fijos arriba, en el orden de VS Code, imposibles de romper |
 
 </div>
@@ -146,9 +147,16 @@ para ejecutarla a mano.
 
 ## Decisiones de diseño que conviene saber
 
-**Refleja tus barras laterales, no tu lista de extensiones.** Un tema o un paquete de idioma
-no aporta icono, así que no aparece. Tampoco lo que vive en el panel inferior: eso no es una
-barra lateral.
+**Refleja tus barras laterales, y detrás del ojo, todo lo demás.** El tablero es la barra:
+solo sale lo que tiene icono propio. Lo que instalaste y no aporta ninguno —C/C++, YAML,
+WSL, un tema— vive detrás del ojo como **extensión pasiva**, con su nombre y su logo de la
+tienda, y se puede apagar, encender y desinstalar igual que el resto. Lo del panel inferior
+sigue fuera: eso no es una barra lateral.
+
+La lista sale del propio registro de VS Code (`extensions.json`, en la carpeta donde vive
+esta extensión), no de las extensiones cargadas — ahí no están las apagadas, que son justo
+las que hay que poder volver a encender. Si no se puede deducir esa carpeta, no hay pasivas
+y ya está: adivinar una ruta sería leer archivos que no nos corresponden.
 
 **Los iconos muertos se filtran.** Las vistas detrás de una cláusula `when` que no se cumple,
 los contenedores sin ninguna vista y los comandos que VS Code no tiene registrados no llegan
@@ -187,7 +195,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 196 pruebas, sin necesidad de VS Code
+npm test      # 203 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

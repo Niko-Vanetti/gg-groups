@@ -1,0 +1,38 @@
+[
+  {
+    "identifier": {
+      "id": "acme.passive-one"
+    },
+    "relativeLocation": "acme.passive-one-1.0.0",
+    "metadata": {
+      "publisherDisplayName": "ACME"
+    }
+  },
+  {
+    "identifier": {
+      "id": "acme.passive-two"
+    },
+    "relativeLocation": "acme.passive-two-2.1.0",
+    "metadata": {
+      "publisherDisplayName": "ACME"
+    }
+  },
+  {
+    "identifier": {
+      "id": "acme.build"
+    },
+    "relativeLocation": "acme.build-1.0.0"
+  },
+  {
+    "identifier": {
+      "id": "acme.sinnombre"
+    },
+    "relativeLocation": "acme.sinnombre-0.1.0"
+  },
+  {
+    "identifier": {
+      "id": "acme.fantasma"
+    },
+    "relativeLocation": "acme.no-existe-9.9.9"
+  }
+]

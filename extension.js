@@ -1,5 +1,6 @@
 const vscode = require('vscode');
 const fs = require('fs');
+const path = require('path');
 const { execFile, spawn } = require('child_process');
 
 const KEY_FOLDERS = 'viewGroups.folders';
@@ -85,6 +86,7 @@ const CHAT_SPECIFIC = [
 // A proposito NO se usa vscode.l10n: ese sigue el idioma de VS Code, y aqui queremos
 // el del sistema operativo. En Windows no hay LANG, pero el locale de ICU si lo refleja.
 let STRINGS = {};
+let LANG = 'en';                                          // idioma activo, para leer los nombres de la tienda
 
 function systemLocale() {
   const env = process.env.LC_ALL || process.env.LC_MESSAGES || process.env.LANG;
@@ -98,6 +100,7 @@ function systemLocale() {
 
 function loadStrings(ctx, locale) {
   const lang = locale || systemLocale();
+  LANG = lang;
   STRINGS = {};
   if (lang === 'en') return lang;                     // el codigo ya esta en ingles
   try {
@@ -136,6 +139,75 @@ const t = (s, ...a) => String(STRINGS[s] || s).replace(/\{(\d)\}/g, (_, i) => a[
 
 // VS Code ya resuelve las claves NLS del packageJSON; si alguna queda como %clave%, usa el id.
 const label = (s, id) => (typeof s !== 'string' || !s || /^%.*%$/.test(s) ? id : s);
+
+/**
+ * Donde VS Code guarda lo que instalas desde la tienda: la carpeta que contiene a esta
+ * misma extension, porque vive ahi dentro. Se deduce en vez de darla por sabida — asi
+ * vale igual con --extensions-dir, con una instalacion portable o con varios perfiles.
+ * Sin registro no hay pasivas y ya esta; adivinar una ruta seria leer lo que no toca.
+ */
+function extensionsDir(ctx) {
+  const propia = ctx && ctx.extensionUri && ctx.extensionUri.fsPath;
+  return propia ? path.dirname(propia) : null;
+}
+
+/** El nombre que se ve en la tienda, resolviendo los %marcadores% de traduccion. */
+function displayName(dir, pkg) {
+  const crudo = pkg.displayName || pkg.name || '';
+  const clave = /^%(.+)%$/.exec(crudo);
+  if (!clave) return crudo;
+  for (const f of [`package.nls.${LANG}.json`, 'package.nls.json']) {
+    try {
+      const nls = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+      const v = nls[clave[1]];
+      if (typeof v === 'string' && v) return v;
+      if (v && typeof v.message === 'string') return v.message;
+    } catch { /* sin ese archivo, se prueba el siguiente */ }
+  }
+  return pkg.name || crudo;
+}
+
+/**
+ * Todo lo instalado desde la tienda, tenga icono en la barra o no. Es la misma lista que
+ * VS Code enseña en "Installed", y sale de su propio registro y no de extensions.all,
+ * porque ahi no estan las que ya se apagaron — y son justo las que hay que poder volver
+ * a encender.
+ */
+function installedExtensions(ctx) {
+  const dir = extensionsDir(ctx);
+  if (!dir) return [];
+  let registro;
+  try {
+    registro = JSON.parse(fs.readFileSync(path.join(dir, 'extensions.json'), 'utf8'));
+  } catch (e) {
+    console.error('[GG Groups] no se pudo leer el registro de extensiones', e);
+    return [];
+  }
+  if (!Array.isArray(registro)) return [];
+
+  const fuera = [];
+  const vistos = new Set();
+  for (const e of registro) {
+    const id = ((e || {}).identifier || {}).id;
+    const rel = (e || {}).relativeLocation;
+    if (!id || !rel || vistos.has(id.toLowerCase())) continue;
+    vistos.add(id.toLowerCase());
+    const carpeta = path.join(dir, rel);
+    let pkg;
+    try {
+      pkg = JSON.parse(fs.readFileSync(path.join(carpeta, 'package.json'), 'utf8'));
+    } catch {
+      continue;                                     // carpeta a medias: no se inventa nada
+    }
+    fuera.push({
+      ext: id,
+      label: displayName(carpeta, pkg) || id,
+      owner: (e.metadata || {}).publisherDisplayName || pkg.publisher || '',
+      icon: pickIcon(ctx, vscode.Uri.file(carpeta), pkg.icon, null),
+    });
+  }
+  return fuera;
+}
 
 /** El dibujo oficial de un codicon, si existe entre los que se distribuyen. */
 function codiconIcon(ctx, name) {
@@ -364,6 +436,21 @@ function discover(ctx) {
     tiles.push({ key, cmd, label: t(name), owner: 'Visual Studio Code', ext: 'vscode', icon: codiconIcon(ctx, icon) });
   }
 
+  // Las pasivas: instaladas desde la tienda pero sin icono en ninguna barra lateral. No
+  // se pueden abrir porque no tienen nada que abrir, pero si apagar, y hasta ahora no
+  // habia forma de llegar a ellas desde aqui.
+  const conIcono = new Set(tiles.map((x) => String(x.ext).toLowerCase()));
+  const cargadas = new Set(vscode.extensions.all.map((e) => String(e.id).toLowerCase()));
+  for (const e of installedExtensions(ctx)) {
+    const id = e.ext.toLowerCase();
+    if (conIcono.has(id) || id === 'niko.view-groups') continue;
+    conIcono.add(id);
+    tiles.push({
+      key: 'x:' + e.ext, cmd: null, label: e.label, owner: e.owner, ext: e.ext,
+      icon: e.icon, passive: true, off: !cargadas.has(id),
+    });
+  }
+
   const seen = new Set();
   return tiles.filter((x) => !seen.has(x.key) && seen.add(x.key));
 }
@@ -385,7 +472,8 @@ async function keepClickable(tiles) {
   if (!Array.isArray(list) || !list.length) return tiles;
   const known = new Set(list);
   refineChat(tiles, known);
-  return tiles.filter((x) => known.has(x.cmd));
+  // Las pasivas no tienen comando que comprobar: se quedan por definicion.
+  return tiles.filter((x) => x.passive || known.has(x.cmd));
 }
 
 /** Apunta el icono de chat al comando mas concreto que exista aqui. */
@@ -524,7 +612,7 @@ class Board {
     // El catalogo se pone al dia con lo que hay cargado ahora.
     const catalogo = new Map(this.seen.map((o) => [o.key, o]));
     for (const x of live) {
-      if (x.ext === 'vscode') continue;                       // los de fabrica no se apagan
+      if (x.ext === 'vscode' || x.passive) continue;          // los de fabrica no se apagan
       if (ignorar.has(String(x.ext).toLowerCase())) continue;
       catalogo.set(x.key, {
         ext: x.ext, key: x.key, cmd: x.cmd, label: x.label, owner: x.owner,
@@ -870,9 +958,13 @@ class Board {
    * y entre ellas siempre alfabeticas: el orden manual solo manda entre las encendidas.
    */
   offLast(list) {
-    const on = list.filter((x) => !x.off);
-    const off = list.filter((x) => x.off).sort((a, b) => this.nameOf(a).localeCompare(this.nameOf(b)));
-    return [...on, ...off];
+    const alfabetico = (a, b) => this.nameOf(a).localeCompare(this.nameOf(b));
+    // Primero lo que tiene icono propio, luego lo apagado, y al final las pasivas, que
+    // son muchas y no deben empujar hacia abajo lo que se usa a diario.
+    const on = list.filter((x) => !x.off && !x.passive);
+    const off = list.filter((x) => x.off && !x.passive).sort(alfabetico);
+    const pasivas = list.filter((x) => x.passive).sort(alfabetico);
+    return [...on, ...off, ...pasivas];
   }
 
   /** Las baldosas visibles ahora mismo, sin las que viven en carpetas, ya ordenadas. */
@@ -889,7 +981,10 @@ class Board {
   /** Todo menos lo que el usuario mando a ocultar (salvo que pida verlo). */
   visible() {
     const hidden = this.hidden;
-    return this.showHidden ? this.tiles : this.tiles.filter((x) => !hidden.has(x.key));
+    // Las pasivas viven con los ocultos: el tablero es la barra lateral, y ahi no estan.
+    // Se asoman al abrir el ojo, que es cuando se esta revisando lo que no se ve.
+    if (this.showHidden) return this.tiles;
+    return this.tiles.filter((x) => !x.passive && !hidden.has(x.key));
   }
 
   uniqueName(base, folders) {
@@ -949,6 +1044,7 @@ class Board {
       mask: !!(x.icon && x.icon.mask),
       off: !!x.off,
       fixed: !!x.native || x.ext === 'vscode',
+      passive: !!x.passive,
       hidden: hidden.has(x.key),
       renamed: typeof names[x.key] === 'string',
     });
@@ -971,6 +1067,8 @@ class Board {
   async open(key) {
     const tile = this.tiles.find((x) => x.key === key);
     if (!tile) return;
+    // Pasiva: no aporta panel ninguno, asi que se abre su ficha en la tienda.
+    if (tile.passive && !tile.off) return this.openExtensionPage(tile.ext);
     // Apagada: no hay panel que abrir. Se dice, y encenderla es una accion aparte y
     // deliberada — no algo que ocurra por pulsar donde antes se abria otra cosa.
     if (tile.off) {
@@ -1262,5 +1360,5 @@ module.exports = {
   activate, deactivate() {},
   Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale,
   NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
-  restartCommand, findPython, modKey, cleanEnv,
+  restartCommand, findPython, modKey, cleanEnv, installedExtensions, displayName,
 };
