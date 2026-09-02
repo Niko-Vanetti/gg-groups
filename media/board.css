@@ -269,3 +269,18 @@ body {
 
 /* Los dibujos del pie, al tamano de los codicons de VS Code. El tinte ya lo pone .mask. */
 .cell.action .mask { width: 16px; height: 16px; }
+
+/* Hay version nueva: el mismo punto que usa VS Code en su lista de extensiones. Va en
+   ::before porque el ::after lo ocupa el recuadro de elegida, y dos reglas sobre el mismo
+   pseudoelemento se mezclan sin avisar. */
+.cell.updatable::before {
+  content: '';
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vscode-activityBarBadge-background, #0078d4);
+  border: 1px solid var(--vscode-sideBar-background, #181818);
+}

@@ -1,5 +1,6 @@
 const vscode = require('vscode');
 const fs = require('fs');
+const https = require('https');
 const path = require('path');
 const { execFile, spawn } = require('child_process');
 
@@ -31,6 +32,7 @@ const EXT_PAGE_CMDS = ['extension.open', 'workbench.extensions.search'];
  * del disco, asi que se pide confirmacion antes.
  */
 const UNINSTALL_CMDS = ['workbench.extensions.uninstallExtension'];
+const INSTALL_CMDS = ['workbench.extensions.installExtension'];
 // VS Code ha ido cambiando el nombre de este comando; se busca por patron en vez de fijarlo.
 const MOVE_RIGHT = /^workbench\.action\.move.*View.*(SecondarySideBar|AuxiliaryBar)$/i;
 // Las dos barras laterales, y solo esas: lo que vive en el panel de abajo no es un icono de barra.
@@ -201,12 +203,102 @@ function installedExtensions(ctx) {
     }
     fuera.push({
       ext: id,
+      version: e.version || pkg.version || '',
       label: displayName(carpeta, pkg) || id,
       owner: (e.metadata || {}).publisherDisplayName || pkg.publisher || '',
       icon: pickIcon(ctx, vscode.Uri.file(carpeta), pkg.icon, null),
     });
   }
   return fuera;
+}
+
+/**
+ * La consulta al mercado, tal como la hace VS Code. Se devuelve armada en vez de enviarse
+ * para poder comprobarla sin salir a la red: lo que viaja son los identificadores de las
+ * extensiones y nada mas.
+ */
+function marketplaceQuery(ids) {
+  return JSON.stringify({
+    filters: [{
+      criteria: [
+        { filterType: 8, value: 'Microsoft.VisualStudio.Code' },
+        ...ids.map((id) => ({ filterType: 7, value: id })),
+      ],
+      pageNumber: 1,
+      pageSize: Math.max(ids.length, 1),
+    }],
+    // Solo la ultima version de cada una: no hace falta el historial para comparar.
+    flags: 0x1 | 0x200,
+  });
+}
+
+/** Compara versiones al estilo 1.10.2 > 1.9.9, sin tratarlas como texto. */
+function newerVersion(a, b) {
+  const trozos = (v) => String(v || '').split('.').map((n) => parseInt(n, 10) || 0);
+  const x = trozos(a), y = trozos(b);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+  }
+  return false;
+}
+
+/**
+ * De la respuesta del mercado a "esta tiene version nueva". `instaladas` es un mapa de
+ * identificador a la version que hay puesta ahora mismo.
+ */
+function parseUpdates(cuerpo, instaladas) {
+  const fuera = new Map();
+  let datos;
+  try {
+    datos = typeof cuerpo === 'string' ? JSON.parse(cuerpo) : cuerpo;
+  } catch {
+    return fuera;
+  }
+  for (const r of ((datos || {}).results || [])) {
+    for (const e of (r.extensions || [])) {
+      const id = `${((e.publisher || {}).publisherName) || ''}.${e.extensionName || ''}`.toLowerCase();
+      const puesta = instaladas.get(id);
+      if (!puesta) continue;
+      // Las versiones de vista previa no cuentan como actualizacion: quien las quiere se
+      // las instala a mano, y ofrecerlas aqui cambiaria el canal sin avisar.
+      const estable = (e.versions || []).find((v) => !((v.properties || []).some(
+        (pr) => pr.key === 'Microsoft.VisualStudio.Code.PreRelease' && pr.value === 'true')));
+      const ultima = (estable || (e.versions || [])[0] || {}).version;
+      if (ultima && newerVersion(ultima, puesta)) fuera.set(id, ultima);
+    }
+  }
+  return fuera;
+}
+
+/**
+ * Pregunta al mercado que hay de nuevo. Es la unica parte de GG Groups que sale a la red,
+ * y solo ocurre cuando el usuario lo pide expresamente.
+ */
+function fetchUpdates(ids, instaladas) {
+  const cuerpo = marketplaceQuery(ids);
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'marketplace.visualstudio.com',
+      path: '/_apis/public/gallery/extensionquery',
+      method: 'POST',
+      timeout: 15000,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json;api-version=3.0-preview.1',
+        'Content-Length': Buffer.byteLength(cuerpo),
+      },
+    }, (res) => {
+      let texto = '';
+      res.setEncoding('utf8');
+      res.on('data', (c) => { texto += c; });
+      res.on('end', () => (res.statusCode === 200
+        ? resolve(parseUpdates(texto, instaladas))
+        : reject(new Error('HTTP ' + res.statusCode))));
+    });
+    req.on('timeout', () => req.destroy(new Error(t('it did not respond'))));
+    req.on('error', reject);
+    req.end(cuerpo);
+  });
 }
 
 /** El dibujo oficial de un codicon, si existe entre los que se distribuyen. */
@@ -551,6 +643,9 @@ class Board {
   constructor(ctx) {
     this.ctx = ctx;
     this.tiles = discover(ctx);
+    // Lo que el mercado dijo la ultima vez que se le pregunto. No se guarda entre
+    // sesiones: es la foto de una consulta que el usuario pidio, no un hecho del disco.
+    this.updates = new Map();
   }
 
   /**
@@ -805,6 +900,52 @@ class Board {
     await this.refresh();
   }
 
+  /**
+   * Pregunta al mercado que extensiones tienen version nueva. Solo se hace cuando el
+   * usuario lo pide: hasta entonces GG Groups no habla con nadie de fuera.
+   */
+  async checkUpdates() {
+    const instaladas = new Map(
+      installedExtensions(this.ctx).map((o) => [o.ext.toLowerCase(), o.version]));
+    if (!instaladas.size) {
+      vscode.window.showInformationMessage(t('No installed extensions to check.'));
+      return;
+    }
+    await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Window, title: t('Asking the marketplace...') },
+      async () => {
+        try {
+          this.updates = await fetchUpdates([...instaladas.keys()], instaladas);
+        } catch (e) {
+          vscode.window.showWarningMessage(
+            t('Could not ask the marketplace: {0}', (e && e.message) || String(e)));
+          return;
+        }
+        this.render();
+        vscode.window.showInformationMessage(this.updates.size
+          ? t('{0} with a new version. Right-click to update.', this.updates.size)
+          : t('Everything is up to date.'));
+      });
+  }
+
+  /** Instala la ultima version de una extension. VS Code se encarga del resto. */
+  async update(key) {
+    const tile = this.tiles.find((x) => x.key === key);
+    if (!tile || !tile.ext || tile.ext === 'vscode') return;
+    for (const cmd of INSTALL_CMDS) {
+      try {
+        await vscode.commands.executeCommand(cmd, tile.ext);
+        this.updates.delete(tile.ext.toLowerCase());
+        this.render();
+        return;
+      } catch (e) {
+        console.error('[GG Groups] no se pudo actualizar con', cmd, e);
+      }
+    }
+    // Si ningun comando responde, al menos se llega a su ficha, donde el boton si esta.
+    await this.openExtensionPage(tile.ext, t('Use the Update button on this page.'));
+  }
+
   /** Donde el proceso de fuera deja constancia de lo que hizo. */
   logPath() {
     return vscode.Uri.joinPath(this.ctx.globalStorageUri, 'gg-apply.log').fsPath.replace(/\\/g, '/');
@@ -1045,6 +1186,7 @@ class Board {
       off: !!x.off,
       fixed: !!x.native || x.ext === 'vscode',
       passive: !!x.passive,
+      update: this.updates.get(String(x.ext).toLowerCase()) || null,
       hidden: hidden.has(x.key),
       renamed: typeof names[x.key] === 'string',
     });
@@ -1246,6 +1388,10 @@ class Board {
       case 'newFolder':
         return this.newFolder();
       // El webview avisa de que ya esta en marcha: hasta aqui no habia nadie escuchando.
+      case 'checkUpdates':
+        return this.checkUpdates();
+      case 'update':
+        return this.update(m.key);
       case 'ready':
         return this.tiles.length ? this.render() : this.refresh();
       case 'refresh':
@@ -1285,6 +1431,7 @@ class Board {
       disableSel: t('Turn the selected ones off'), enableSel: t('Turn the selected ones on'),
       mixedPick: t('Some are on and some are off: pick only one kind'),
       uninstallSel: t('Uninstall the selected ones'),
+      checkUpdates: t('Check for updates'), update: t('Update to {0}'),
       hint: modKey(t('Drag one icon onto another to group them. Ctrl+click picks several; tap Ctrl twice to drop them.')),
     };
     return `<!DOCTYPE html><html><head>
@@ -1316,6 +1463,7 @@ function activate(context) {
       vscode.commands.executeCommand('viewGroups.board.focus')),
     vscode.commands.registerCommand('viewGroups.unhideAll', () =>
       board.onMessage({ type: 'unhideAll' })),
+    vscode.commands.registerCommand('viewGroups.checkUpdates', () => board.checkUpdates()),
     vscode.commands.registerCommand('viewGroups.selfTest', async () => {
       const out = vscode.window.createOutputChannel('GG Groups');
       out.clear();
@@ -1361,4 +1509,5 @@ module.exports = {
   Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale,
   NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
   restartCommand, findPython, modKey, cleanEnv, installedExtensions, displayName,
+  marketplaceQuery, newerVersion, parseUpdates,
 };

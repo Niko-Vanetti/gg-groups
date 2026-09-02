@@ -14,6 +14,7 @@ const STR = {
   pickFirst: 'Ctrl+clic para elegir varios', mixedPick: 'Hay de los dos tipos mezclados',
   disableSel: 'Desactivar los elegidos', enableSel: 'Activar los elegidos',
   uninstallSel: 'Desinstalar los elegidos',
+  checkUpdates: 'Buscar actualizaciones', update: 'Actualizar a {0}',
   unhideAll: 'Recuperar todos los ocultos',
   disable: 'Desactivar la extension', enable: 'Activar la extension', forget: 'Quitar del tablero',
   uninstall: 'Desinstalar la extension',
@@ -730,4 +731,39 @@ test('UI: tras soltar Ctrl el boton del pie sigue sirviendo', () => {
   ui.keyup('Control');                                    // se suelta para poder pulsar
   ui.actions()[3].onclick();
   assert.deepStrictEqual(ui.last(), { type: 'apply', keys: ['c:a', 'c:b'], action: 'disable' });
+});
+
+test('UI: con version nueva se ve el aviso y el menu ofrece actualizar', () => {
+  const ui = mount({ loose: [tile('c:a', { update: '2.5.0' }), tile('c:b')] });
+  assert.ok(ui.cells()[0].className.includes('updatable'));
+  assert.ok(!ui.cells()[1].className.includes('updatable'), 'aviso donde no toca');
+  ui.cells()[0].oncontextmenu(ui.ev());
+  const rows = [...ui.doc.getElementById('menu').children];
+  assert.strictEqual(rows[0].textContent, 'Actualizar a 2.5.0', 'no dice a que version');
+  rows[0].onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'update', key: 'c:a' });
+});
+
+test('UI: sin version nueva el menu no ofrece actualizar', () => {
+  const ui = mount({ loose: [tile('c:a')] });
+  ui.cells()[0].oncontextmenu(ui.ev());
+  assert.strictEqual([...ui.doc.getElementById('menu').children][0].textContent, STR.renameTile);
+});
+
+test('UI: preguntar al mercado esta detras del boton de actualizar', () => {
+  const ui = mount({ loose: [tile('c:a')] });
+  const recargar = ui.actions()[5];
+  assert.strictEqual(recargar.title, STR.refresh);
+  recargar.oncontextmenu(ui.ev());
+  const rows = [...ui.doc.getElementById('menu').children];
+  assert.deepStrictEqual(rows.map((r) => r.textContent), [STR.checkUpdates]);
+  rows[0].onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'checkUpdates' });
+});
+
+test('UI: el aviso y el recuadro de elegida no se pisan', () => {
+  // Van en pseudoelementos distintos justamente para poder verse a la vez.
+  const css = fs.readFileSync(path.join(__dirname, '..', 'media', 'board.css'), 'utf8');
+  assert.deepStrictEqual(css.match(/\.cell[^{,]*::after/g) || [], ['.cell.sel::after']);
+  assert.deepStrictEqual(css.match(/\.cell[^{,]*::before/g) || [], ['.cell.updatable::before']);
 });

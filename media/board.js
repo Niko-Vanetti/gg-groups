@@ -148,7 +148,12 @@
   }
 
   function menuFor(t) {
-    const rows = [[S.renameTile, () => post({ type: 'renameTile', key: t.key })]];
+    const rows = [];
+    // Lo primero, si lo hay: actualizar es lo que se viene a hacer cuando se ve el aviso.
+    if (t.update) {
+      rows.push([S.update.replace('{0}', t.update), () => post({ type: 'update', key: t.key })]);
+    }
+    rows.push([S.renameTile, () => post({ type: 'renameTile', key: t.key })]);
     if (t.renamed) rows.push([S.resetName, () => post({ type: 'resetName', key: t.key })]);
     // El interruptor: los iconos de fabrica y el propio tablero no se apagan.
     if (!t.fixed) {
@@ -171,10 +176,11 @@
     const nextKey = list && list[i + 1] ? (list[i + 1].key || (list[i + 1].tiles || [])[0].key) : null;
     const n = el('div', 'cell' + (active === t.key ? ' active' : '') +
       (inside ? ' inside' : '') + (t.hidden ? ' faded' : '') + (t.off ? ' off' : '') +
-      (sel.has(t.key) ? ' sel' : ''));
+      (sel.has(t.key) ? ' sel' : '') + (t.update ? ' updatable' : ''));
     // Ni el bloque nativo ni el propio tablero: ninguna accion de grupo les aplica.
     const elegible = !locked && !t.fixed;
-    n.title = t.label + (t.owner && t.owner !== t.label ? ' — ' + t.owner : '');
+    n.title = t.label + (t.owner && t.owner !== t.label ? ' — ' + t.owner : '') +
+      (t.update ? ' · ' + S.update.replace('{0}', t.update) : '');
     n.dataset.key = t.key;
     n.appendChild(art(t));
 
@@ -338,7 +344,10 @@
       s2.count ? () => post({ type: 'uninstallMany', keys: [...sel] }) : null,
       s2.count ? '' : ' disabled');
 
-    btn('refresh', S.refresh, () => post({ type: 'refresh' }));
+    const recargar = btn('refresh', S.refresh, () => post({ type: 'refresh' }));
+    // Preguntar al mercado sale de aqui y no de un boton propio: es algo que se hace de
+    // vez en cuando, y es la unica accion que habla con fuera.
+    recargar.oncontextmenu = (e) => menu(e, [[S.checkUpdates, () => post({ type: 'checkUpdates' })]]);
   }
 
   /** Pinta una lista de baldosas aplicando el apilado por nombre. */

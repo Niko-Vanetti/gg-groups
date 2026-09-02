@@ -2,7 +2,7 @@
   "name": "view-groups",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "1.16.0",
+  "version": "1.17.0",
   "publisher": "niko",
   "engines": {
     "vscode": "^1.74.0"
@@ -13,6 +13,7 @@
   "main": "./extension.js",
   "l10n": "./l10n",
   "activationEvents": [
+    "onCommand:viewGroups.checkUpdates",
     "onCommand:viewGroups.diagnose",
     "onCommand:viewGroups.selfTest",
     "onCommand:viewGroups.show",
@@ -40,6 +41,11 @@
       {
         "command": "viewGroups.selfTest",
         "title": "%cmd.selfTest%",
+        "category": "%displayName%"
+      },
+      {
+        "command": "viewGroups.checkUpdates",
+        "title": "%cmd.checkUpdates%",
         "category": "%displayName%"
       }
     ],

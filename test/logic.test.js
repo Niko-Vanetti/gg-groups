@@ -40,7 +40,8 @@ mod._compile(fs.readFileSync(path.join(ROOT, 'extension.js'), 'utf8'), 'extensio
 Module._load = orig;
 
 const { Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale, NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
-  restartCommand, modKey, cleanEnv, installedExtensions, displayName } = mod.exports;
+  restartCommand, modKey, cleanEnv, installedExtensions, displayName,
+  marketplaceQuery, newerVersion, parseUpdates } = mod.exports;
 const CTX = { extensionUri: { fsPath: ROOT } };
 const tiles = discover(CTX);
 // Iconos que el usuario puede mover: los nativos van bloqueados y no valen para estas pruebas.
@@ -1491,4 +1492,72 @@ test('llevan su logo de verdad, no una inicial', () => {
 test('y su editor, para distinguir dos que se llamen parecido', () => {
   const lista = installedExtensions({ extensionUri: TIENDA });
   assert.strictEqual(lista.find((o) => o.ext === 'acme.passive-one').owner, 'ACME');
+});
+
+// --- actualizaciones: se pregunta solo cuando el usuario lo pide ---
+
+test('la consulta lleva los identificadores y nada mas', () => {
+  const cuerpo = JSON.parse(marketplaceQuery(['acme.uno', 'acme.dos']));
+  const criterios = cuerpo.filters[0].criteria;
+  assert.deepStrictEqual(criterios.filter((c) => c.filterType === 7).map((c) => c.value),
+    ['acme.uno', 'acme.dos']);
+  assert.ok(criterios.some((c) => c.filterType === 8 && c.value === 'Microsoft.VisualStudio.Code'),
+    'sin acotar a VS Code vendrian extensiones de otros productos');
+  // Nada de rutas, nombres de archivo ni ajustes: solo que extensiones son.
+  assert.ok(!/[A-Za-z]:\\|\/Users\/|token|secret/i.test(JSON.stringify(cuerpo)));
+});
+
+test('las versiones se comparan como numeros, no como texto', () => {
+  assert.ok(newerVersion('1.10.0', '1.9.9'), 'como texto, "1.10" parece menor que "1.9"');
+  assert.ok(newerVersion('2.0.0', '1.99.99'));
+  assert.ok(newerVersion('1.0.1', '1.0'));
+  assert.ok(!newerVersion('1.2.3', '1.2.3'), 'la misma version no es una actualizacion');
+  assert.ok(!newerVersion('1.2.3', '1.2.4'));
+  assert.ok(!newerVersion('', '1.0.0'));
+});
+
+test('de la respuesta salen solo las que de verdad tienen algo mas nuevo', () => {
+  const respuesta = { results: [{ extensions: [
+    { publisher: { publisherName: 'acme' }, extensionName: 'uno', versions: [{ version: '2.0.0' }] },
+    { publisher: { publisherName: 'acme' }, extensionName: 'dos', versions: [{ version: '1.0.0' }] },
+    { publisher: { publisherName: 'otro' }, extensionName: 'nada', versions: [{ version: '9.0.0' }] },
+  ] }] };
+  const instaladas = new Map([['acme.uno', '1.0.0'], ['acme.dos', '1.0.0']]);
+  const updates = parseUpdates(respuesta, instaladas);
+  assert.deepStrictEqual([...updates], [['acme.uno', '2.0.0']]);
+});
+
+test('una version de vista previa no cuenta como actualizacion', () => {
+  // Ofrecerla cambiaria de canal sin avisar a quien no lo pidio.
+  const preview = { key: 'Microsoft.VisualStudio.Code.PreRelease', value: 'true' };
+  const respuesta = { results: [{ extensions: [{
+    publisher: { publisherName: 'acme' }, extensionName: 'uno',
+    versions: [{ version: '3.0.0-pre', properties: [preview] }, { version: '2.0.0' }],
+  }] }] };
+  const updates = parseUpdates(respuesta, new Map([['acme.uno', '1.0.0']]));
+  assert.deepStrictEqual([...updates], [['acme.uno', '2.0.0']]);
+});
+
+test('una respuesta rota no tumba el tablero', () => {
+  assert.deepStrictEqual([...parseUpdates('esto no es json', new Map())], []);
+  assert.deepStrictEqual([...parseUpdates({}, new Map())], []);
+  assert.deepStrictEqual([...parseUpdates({ results: [{}] }, new Map())], []);
+});
+
+test('sin haber preguntado, ninguna baldosa dice que tiene actualizacion', async () => {
+  // Es la garantia de que no se sale a la red por su cuenta.
+  const b = makeBoard();
+  await b.refresh();
+  const pintadas = b.last().loose.concat(b.last().folders.flatMap((f) => f.tiles));
+  assert.ok(pintadas.every((x) => x.update === null));
+});
+
+test('lo que dijo el mercado llega al webview', async () => {
+  const b = makeBoard();
+  await b.refresh();
+  b.updates = new Map([['acme.build', '9.9.9']]);
+  b.render();
+  const pintadas = b.last().loose.concat(b.last().folders.flatMap((f) => f.tiles));
+  const suya = pintadas.find((x) => x.key === 'c:buildView');
+  assert.strictEqual(suya.update, '9.9.9');
 });

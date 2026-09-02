@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-203%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-214%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -40,6 +40,7 @@ obvious way: drag one icon onto another, name the folder, done.
 | **Hide the noise** | Right-click → hide. The eye at the bottom brings them all back |
 | **Work in groups** | **Ctrl+click** picks several: they drag together, turn off together, uninstall together |
 | **Disabled ones stay visible** | Turn one off and it greys out at the bottom instead of vanishing, one click from coming back |
+| **Update notices** | A blue dot on the ones with a new version, right-click to install it. It only queries the marketplace when you ask |
 | **Passive extensions** | Installed ones that contribute no bar icon — C/C++, YAML, WSL… — appear behind the eye, with their store name and logo |
 | **Native block, locked** | Explorer, Search, Source Control, Run and Debug, Extensions — pinned on top, in VS Code's own order, indestructible |
 
@@ -73,7 +74,8 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 | **Ctrl Ctrl · Escape** | Drops the whole selection |
 | **Ctrl+click a stack** | Picks every icon under it at once |
 | **Drag a picked one** | Takes every picked icon along |
-| **Right-click an icon** | Rename · turn off · uninstall · hide |
+| **Right-click an icon** | Update (when there's a new version) · rename · turn off · uninstall · hide |
+| **Right-click ↻** | Check the marketplace for updates |
 | **Right-click a folder** | Sort A–Z · rename · delete |
 | **Bottom buttons** | New folder · sort all · eye (show hidden) · pause/play (turn the picked ones off or on) · trash (uninstall the picked ones) · refresh |
 
@@ -179,8 +181,12 @@ icon greys out when VS Code genuinely stops loading it, however you turned it of
 Uninstalling *is* scriptable, so that one happens in place, behind a confirmation that says
 plainly it deletes the extension from disk.
 
-**Your setup is yours.** Folders, order, names, hidden and disabled icons live in VS Code's
-extension storage. Nothing is written to your settings, and nothing leaves your machine.
+**Your setup is yours, and nothing is contacted without asking.** Folders, order, names,
+hidden and disabled icons live in VS Code's extension storage; nothing is written to your
+settings. GG Groups works entirely offline, with a single exception that only happens when
+you ask for it: **Check for updates** queries the Visual Studio Marketplace — the same
+endpoint and the same request VS Code itself makes — sending your extension identifiers and
+nothing else. Until you press that, nothing leaves your machine.
 
 ## Verify it yourself
 
@@ -193,7 +199,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 203 tests, no VS Code needed
+npm test      # 214 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

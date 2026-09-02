@@ -6,5 +6,6 @@
   "view.name": "My extensions",
   "cmd.diagnose": "Diagnostics",
   "cmd.unhideAll": "Show all hidden icons",
-  "cmd.selfTest": "Check that everything works"
+  "cmd.selfTest": "Check that everything works",
+  "cmd.checkUpdates": "Check for updates"
 }

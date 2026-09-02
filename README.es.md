@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-203%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-214%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -40,6 +40,7 @@ que creas de la forma evidente: arrastras un icono sobre otro, le pones nombre, 
 | **Esconder el ruido** | Clic derecho → ocultar. El ojo del pie los devuelve todos |
 | **Trabajar por grupos** | **Ctrl+clic** elige varios: se arrastran juntos, se apagan juntos, se desinstalan juntos |
 | **Las apagadas siguen a la vista** | Al desactivar una queda en gris al fondo en vez de desaparecer, a un clic de volver |
+| **Avisa de actualizaciones** | Un punto azul en las que tienen versión nueva, y clic derecho para instalarla. Solo consulta el mercado cuando tú lo pides |
 | **Extensiones pasivas** | Las instaladas que no aportan icono a ninguna barra —C/C++, YAML, WSL…— salen al abrir el ojo, con su nombre y su logo de la tienda |
 | **Bloque nativo, blindado** | Explorador, Buscar, Control de código fuente, Ejecutar y depurar, Extensiones — fijos arriba, en el orden de VS Code, imposibles de romper |
 
@@ -73,7 +74,8 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 | **Ctrl Ctrl · Escape** | Suelta la selección entera |
 | **Ctrl+clic en una pila** | Elige de una vez todas las que hay debajo |
 | **Arrastrar uno elegido** | Se lleva a todos los elegidos |
-| **Clic derecho en un icono** | Renombrar · desactivar · desinstalar · ocultar |
+| **Clic derecho en un icono** | Actualizar (si hay versión nueva) · renombrar · desactivar · desinstalar · ocultar |
+| **Clic derecho en ↻** | Buscar actualizaciones en el mercado |
 | **Clic derecho en una carpeta** | Ordenar A–Z · renombrar · eliminar |
 | **Botones del pie** | Nueva carpeta · ordenar todo · ojo (ver ocultos) · pausa/play (apagar o encender lo elegido) · papelera (desinstalar lo elegido) · actualizar |
 
@@ -181,8 +183,12 @@ cuando VS Code deja de cargarlo de verdad, lo hayas apagado desde donde lo hayas
 Desinstalar sí se puede por código, así que eso ocurre en el sitio, tras una confirmación que
 dice claro que borra la extensión del disco.
 
-**Tu configuración es tuya.** Carpetas, orden, nombres, ocultos y apagados viven en el
-almacenamiento de la extensión. No se escribe nada en tus ajustes, y nada sale de tu equipo.
+**Tu configuración es tuya, y no se habla con nadie sin permiso.** Carpetas, orden, nombres,
+ocultos y apagados viven en el almacenamiento de la extensión; no se escribe nada en tus
+ajustes. GG Groups funciona entero sin red, con una única excepción que solo ocurre cuando la
+pides: **Buscar actualizaciones** consulta el mercado de Visual Studio —el mismo sitio y la
+misma petición que hace VS Code— enviando los identificadores de tus extensiones y nada más.
+Hasta que pulses eso, nada sale de tu equipo.
 
 ## Compruébalo tú mismo
 
@@ -195,7 +201,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 203 pruebas, sin necesidad de VS Code
+npm test      # 214 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

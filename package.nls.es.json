@@ -6,5 +6,6 @@
   "view.name": "Mis extensiones",
   "cmd.diagnose": "Diagnóstico",
   "cmd.unhideAll": "Recuperar todos los iconos ocultos",
-  "cmd.selfTest": "Comprobar que todo funciona"
+  "cmd.selfTest": "Comprobar que todo funciona",
+  "cmd.checkUpdates": "Buscar actualizaciones"
 }
