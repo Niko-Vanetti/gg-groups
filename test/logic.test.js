@@ -41,7 +41,7 @@ Module._load = orig;
 
 const { Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale, NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
   restartCommand, modKey, cleanEnv, installedExtensions, displayName,
-  marketplaceQuery, newerVersion, parseUpdates } = mod.exports;
+  marketplaceQuery, newerVersion, parseUpdates, iconGroup } = mod.exports;
 const CTX = { extensionUri: { fsPath: ROOT } };
 const tiles = discover(CTX);
 // Iconos que el usuario puede mover: los nativos van bloqueados y no valen para estas pruebas.
@@ -866,16 +866,6 @@ test('el estado mentiroso de la version anterior se descarta al arrancar', async
 
 // --- correcciones de la revision ---
 
-test('el webview recibe la marca de apagada', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  b.desactivar('acme.build');
-  await b.refresh();
-  const pintadas = b.last().loose.concat(b.last().folders.flatMap((f) => f.tiles));
-  assert.strictEqual(pintadas.find((x) => x.key === 'c:buildView').off, true);
-  b.restore();
-});
-
 test('el catalogo no duplica entradas al refrescar muchas veces', async () => {
   const b = switchBoard(['extension.open']);
   await b.refresh();
@@ -988,60 +978,6 @@ test('la comprobacion escribe un informe legible', async () => {
 });
 
 // --- las apagadas se van al final ---
-
-test('una apagada baja al final de la lista', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  const antes = b.looseTiles().map((x) => x.key);
-  b.desactivar('acme.build');
-  await b.refresh();
-  const despues = b.looseTiles().map((x) => x.key);
-  assert.strictEqual(despues[despues.length - 1], 'c:buildView', 'no se fue al fondo');
-  assert.deepStrictEqual(despues.filter((k) => k !== 'c:buildView'), antes.filter((k) => k !== 'c:buildView'),
-    'las demas deben quedarse donde estaban');
-  b.restore();
-});
-
-test('entre apagadas mandan las letras, no el orden manual', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  const sueltas = b.looseTiles().filter((x) => !x.native).slice(0, 3).map((x) => x.key);
-  // Se colocan a mano en orden inverso y luego VS Code deja de cargarlas.
-  await b.onMessage({ type: 'move', keys: [sueltas[2]], before: sueltas[0] });
-  for (const k of sueltas) b.desactivar(b.tiles.find((x) => x.key === k).ext);
-  await b.refresh();
-  const apagadas = b.looseTiles().filter((x) => x.off);
-  const nombres = apagadas.map((x) => b.nameOf(x));
-  assert.deepStrictEqual(nombres, [...nombres].sort((x, y) => x.localeCompare(y)));
-  b.restore();
-});
-
-test('dentro de una carpeta tambien baja al fondo', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  const dentro = ['c:notesView', 'c:buildView', 'c:keysView'];
-  b.store.set('viewGroups.folders', [{ name: 'A', keys: dentro }]);
-  b.desactivar('acme.build');
-  await b.refresh();
-  const carpeta = b.last().folders.find((f) => f.name === 'A');
-  assert.strictEqual(carpeta.tiles[carpeta.tiles.length - 1].key, 'c:buildView');
-  assert.deepStrictEqual(carpeta.tiles.slice(0, 2).map((x) => x.key), ['c:notesView', 'c:keysView'],
-    'las encendidas conservan su orden');
-  b.restore();
-});
-
-test('al volver a cargarse recupera su orden alfabetico', async () => {
-  const b = switchBoard(['extension.open']);
-  await b.refresh();
-  const sitio = b.looseTiles().findIndex((x) => x.key === 'c:buildView');
-  b.desactivar('acme.build');
-  await b.refresh();
-  assert.strictEqual(b.looseTiles().pop().key, 'c:buildView');
-  b.reactivar();
-  await b.refresh();
-  assert.strictEqual(b.looseTiles().findIndex((x) => x.key === 'c:buildView'), sitio);
-  b.restore();
-});
 
 test('una extension con dos iconos los apaga los dos', async () => {
   const b = switchBoard(['extension.open']);
@@ -1368,8 +1304,10 @@ test('el webview recibe la marca de apagada', async () => {
   await b.refresh();
   b.desactivar('acme.build');
   await b.refresh();
-  const pintadas = b.last().loose.concat(b.last().folders.flatMap((f) => f.tiles));
-  assert.strictEqual(pintadas.find((x) => x.key === 'c:buildView').off, true);
+  const todas = b.last().loose
+    .concat(b.last().folders.flatMap((f) => f.tiles))
+    .concat((b.last().sections || []).flatMap((f) => f.tiles));
+  assert.strictEqual(todas.find((x) => x.key === 'c:buildView').off, true);
   b.restore();
 });
 
@@ -1557,7 +1495,157 @@ test('lo que dijo el mercado llega al webview', async () => {
   await b.refresh();
   b.updates = new Map([['acme.build', '9.9.9']]);
   b.render();
-  const pintadas = b.last().loose.concat(b.last().folders.flatMap((f) => f.tiles));
-  const suya = pintadas.find((x) => x.key === 'c:buildView');
-  assert.strictEqual(suya.update, '9.9.9');
+  const todas = b.last().loose
+    .concat(b.last().folders.flatMap((f) => f.tiles))
+    .concat((b.last().sections || []).flatMap((f) => f.tiles));
+  assert.strictEqual(todas.find((x) => x.key === 'c:buildView').update, '9.9.9');
+});
+
+// --- secciones del final: pasivas y desactivadas ---
+
+/** Todas las baldosas que el webview recibe, vengan de donde vengan. */
+const pintadas = (b) => b.last().loose
+  .concat(b.last().folders.flatMap((f) => f.tiles))
+  .concat((b.last().sections || []).flatMap((f) => f.tiles));
+const seccion = (b, i) => (b.last().sections || [])[i];
+
+test('una apagada se va a la seccion del final, no al fondo de su fila', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.build');
+  await b.refresh();
+  assert.ok(!b.last().loose.some((x) => x.key === 'c:buildView'), 'se quedo entre las vivas');
+  const desactivadas = (b.last().sections || []).find((f) => f.section);
+  assert.ok(desactivadas, 'no hay seccion de desactivadas');
+  assert.ok(desactivadas.tiles.some((x) => x.key === 'c:buildView'));
+  assert.strictEqual(desactivadas.tiles.find((x) => x.key === 'c:buildView').off, true);
+  b.restore();
+});
+
+test('la seccion de desactivadas va la ultima de todo', async () => {
+  const b = switchBoard(['extension.open']);
+  b.store.set('viewGroups.showHidden', true);
+  await b.refresh();
+  b.desactivar('acme.build');
+  await b.refresh();
+  const nombres = (b.last().sections || []).map((f) => f.name);
+  assert.strictEqual(nombres[nombres.length - 1], 'Disabled', 'lo apagado debe cerrar el tablero');
+  b.restore();
+});
+
+test('dentro de una carpeta, apagarla tambien la saca a la seccion', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.store.set('viewGroups.folders', [{ name: 'A', keys: ['c:notesView', 'c:buildView'] }]);
+  b.desactivar('acme.build');
+  await b.refresh();
+  const carpeta = b.last().folders.find((f) => f.name === 'A');
+  assert.deepStrictEqual(carpeta.tiles.map((x) => x.key), ['c:notesView']);
+  assert.ok(seccion(b, 0).tiles.some((x) => x.key === 'c:buildView'));
+  b.restore();
+});
+
+test('al volver a cargarse sale de la seccion y recupera su sitio', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  const sitio = b.last().loose.findIndex((x) => x.key === 'c:buildView');
+  b.desactivar('acme.build');
+  await b.refresh();
+  assert.ok(!b.last().loose.some((x) => x.key === 'c:buildView'));
+  b.reactivar();
+  await b.refresh();
+  assert.strictEqual(b.last().loose.findIndex((x) => x.key === 'c:buildView'), sitio);
+  assert.deepStrictEqual(b.last().sections, []);
+  b.restore();
+});
+
+test('entre las desactivadas mandan las letras, no el orden manual', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  const sueltas = b.last().loose.slice(0, 3).map((x) => x.key);
+  await b.onMessage({ type: 'move', keys: [sueltas[2]], before: sueltas[0] });
+  for (const k of sueltas) b.desactivar(b.tiles.find((x) => x.key === k).ext);
+  await b.refresh();
+  const nombres = seccion(b, 0).tiles.map((x) => x.label);
+  assert.deepStrictEqual(nombres, [...nombres].sort((x, y) => x.localeCompare(y)));
+  b.restore();
+});
+
+test('las pasivas tienen su propia seccion, antes de las desactivadas', async () => {
+  const b = switchBoard(['extension.open'], { 'viewGroups.showHidden': true });
+  b.tiles = [...b.tiles,
+    { key: 'x:acme.quieta', ext: 'acme.quieta', label: 'Quieta', owner: 'ACME',
+      cmd: null, icon: null, passive: true, group: 'name:quieta' }];
+  b.render();
+  assert.deepStrictEqual((b.last().sections || []).map((f) => f.name), ['Passive extensions']);
+  assert.deepStrictEqual(seccion(b, 0).tiles.map((x) => x.key), ['x:acme.quieta']);
+  b.restore();
+});
+
+test('una pasiva apagada cuenta como desactivada, no como pasiva', async () => {
+  // Lo que importa es que no se carga; que ademas no tenga icono es secundario.
+  const b = switchBoard(['extension.open'], { 'viewGroups.showHidden': true });
+  b.tiles = [...b.tiles,
+    { key: 'x:acme.quieta', ext: 'acme.quieta', label: 'Quieta', owner: 'ACME',
+      cmd: null, icon: null, passive: true, off: true, group: 'name:quieta' }];
+  b.render();
+  assert.deepStrictEqual((b.last().sections || []).map((f) => f.name), ['Disabled']);
+  b.restore();
+});
+
+test('sin nada que enseñar, las secciones no aparecen', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  assert.deepStrictEqual(b.last().sections, []);
+  b.restore();
+});
+
+// --- iconos iguales: un solo grupo ---
+
+test('dos extensiones con el mismo dibujo son el mismo grupo', () => {
+  const build = tiles.find((x) => x.key === 'c:buildView');
+  const twin = tiles.find((x) => x.key === 'c:twinView');
+  assert.ok(twin, 'falta la pieza de prueba');
+  assert.strictEqual(build.group, twin.group, 'en la barra parecen la misma cosa');
+});
+
+test('dibujos distintos no se mezclan', () => {
+  const build = tiles.find((x) => x.key === 'c:buildView');
+  const notes = tiles.find((x) => x.key === 'c:notesView');
+  assert.notStrictEqual(build.group, notes.group);
+});
+
+test('sin dibujo se agrupa por el nombre, como antes', () => {
+  assert.strictEqual(iconGroup(null, 'Claude Code'), iconGroup(null, ' claude code '));
+  assert.notStrictEqual(iconGroup(null, 'Claude'), iconGroup(null, 'Otra'));
+});
+
+test('el bloque nativo no se agrupa nunca', () => {
+  const nativos = tiles.filter((x) => x.native);
+  assert.ok(nativos.length > 1);
+  assert.strictEqual(new Set(nativos.map((x) => x.group)).size, nativos.length);
+});
+
+test('el grupo se pinta donde vive la mas viva de sus baldosas', async () => {
+  // Con dos iconos del mismo dibujo y uno oculto, el grupo se queda con el que se ve.
+  const b = switchBoard(['extension.open'], { 'viewGroups.showHidden': true });
+  await b.refresh();
+  b.store.set('viewGroups.hidden', ['c:twinView']);
+  b.render();
+  const juntos = b.last().loose.filter((x) => x.group === b.tiles.find((y) => y.key === 'c:buildView').group);
+  assert.strictEqual(juntos.length, 2, 'el oculto no se junto con el visible');
+  assert.strictEqual(juntos[0].key, 'c:buildView', 'manda el que sigue a la vista');
+  assert.deepStrictEqual(b.last().sections, []);
+  b.restore();
+});
+
+test('si toda la familia esta apagada, el grupo entero va a la seccion', async () => {
+  const b = switchBoard(['extension.open']);
+  await b.refresh();
+  b.desactivar('acme.build');
+  b.desactivar('acme.buildtwin');
+  await b.refresh();
+  const dentro = seccion(b, 0).tiles.map((x) => x.key);
+  assert.ok(dentro.includes('c:buildView') && dentro.includes('c:twinView'));
+  b.restore();
 });

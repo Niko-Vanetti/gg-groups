@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-214%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-230%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -35,13 +35,13 @@ obvious way: drag one icon onto another, name the folder, done.
 | **See everything** | Every sidebar container, no overflow menu |
 | **Group by dragging** | Icon onto icon creates a folder. That's the whole gesture |
 | **Reorder like the real bar** | Drop on an edge to place between icons, on the center to group |
-| **Stack duplicates** | Three icons called *Claude Code* collapse into one with a **3** |
+| **Stack duplicates** | Icons sharing the same artwork collapse into one with a count: C/C++, its themes and its pack are one icon |
 | **Rename anything** | Icons and folders, whatever makes sense to you |
 | **Hide the noise** | Right-click → hide. The eye at the bottom brings them all back |
 | **Work in groups** | **Ctrl+click** picks several: they drag together, turn off together, uninstall together |
 | **Disabled ones stay visible** | Turn one off and it greys out at the bottom instead of vanishing, one click from coming back |
 | **Update notices** | A blue dot on the ones with a new version, right-click to install it. It only queries the marketplace when you ask |
-| **Passive extensions** | Installed ones that contribute no bar icon — C/C++, YAML, WSL… — appear behind the eye, with their store name and logo |
+| **Two closing sections** | *Passive extensions* (installed, no bar icon, behind the eye) and *Disabled*, at the very end |
 | **Native block, locked** | Explorer, Search, Source Control, Run and Debug, Extensions — pinned on top, in VS Code's own order, indestructible |
 
 </div>
@@ -148,6 +148,12 @@ clipboard to run by hand.
 
 ## Design decisions worth knowing
 
+**It groups by artwork, not by name.** That's what you see: C/C++, C/C++ Themes and the C/C++
+pack are three different extensions sharing one logo, and in the bar they look — and are —
+the same thing. They collapse into one icon with a count. The liveliest member wins: if you
+keep one of an extension's three icons active, the whole group renders there instead of
+hidden away with the rest. With no logo it falls back to grouping by name, as before.
+
 **It mirrors your sidebars, and behind the eye, everything else.** The board is the bar: only
 what has its own icon shows up front. Whatever you installed that contributes none — C/C++,
 YAML, WSL, a theme — lives behind the eye as a **passive extension**, with its store name and
@@ -199,7 +205,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 214 tests, no VS Code needed
+npm test      # 230 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

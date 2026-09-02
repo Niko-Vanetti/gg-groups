@@ -22,7 +22,7 @@ module.exports = [
   ext('acme.notes', {
     viewsContainers: { activitybar: [{ id: 'notesView', title: 'Notes', icon: 'mono.svg' }] },
     views: { notesView: [{ id: 'notesTree', name: 'Notes' }] },
-  }, { displayName: 'Notes', icon: 'logo.png' }),
+  }, { displayName: 'Notes', icon: 'notes.png' }),
 
   // Una extension con dos iconos: apagarla debe apagar los dos.
   ext('acme.tasks', {
@@ -34,30 +34,38 @@ module.exports = [
       tasksView: [{ id: 'tasksMain', name: 'Tasks' }, { id: 'tasksExtra', name: 'More' }],
       tasksSecondary: [{ id: 'tasksAside', name: 'Aside' }],
     },
-  }, { displayName: 'Tasks', icon: 'logo.png' }),
+  }, { displayName: 'Tasks', icon: 'tasks.png' }),
 
   // Sus vistas dependen de una context key ajena: no se puede saber, asi que se muestra.
   ext('acme.build', {
     viewsContainers: { activitybar: [{ id: 'buildView', title: 'Build', icon: 'mono.svg' }] },
     views: { buildView: [{ id: 'buildTree', name: 'Build', when: 'build:ready' }] },
-  }, { displayName: 'Build', icon: 'logo.png' }),
+  }, { displayName: 'Build', icon: 'build.png' }),
+
+  // Otra extension distinta con el MISMO dibujo que Build. En la barra parecen la misma
+  // cosa, asi que el tablero las junta en un icono con su numero: es el caso real de
+  // C/C++, sus temas y su paquete, que comparten logo.
+  ext('acme.buildtwin', {
+    viewsContainers: { activitybar: [{ id: 'twinView', title: 'Build Themes', icon: 'mono.svg' }] },
+    views: { twinView: [{ id: 'twinTree', name: 'Twin' }] },
+  }, { displayName: 'Build Themes', icon: 'build.png' }),
 
   // No declara ninguna vista: VS Code no lo pinta en la barra y aqui tampoco.
   ext('acme.empty', {
     viewsContainers: { activitybar: [{ id: 'emptyView', title: 'Empty', icon: 'mono.svg' }] },
-  }, { displayName: 'Empty', icon: 'logo.png' }),
+  }, { displayName: 'Empty', icon: 'empty.png' }),
 
   // Su unica vista depende de un ajuste apagado: se descarta con certeza.
   ext('acme.settingsy', {
     viewsContainers: { activitybar: [{ id: 'settingsyView', title: 'Settingsy', icon: 'mono.svg' }] },
     views: { settingsyView: [{ id: 'settingsyTree', name: 'S', when: 'config.acme.showPanel' }] },
-  }, { displayName: 'Settingsy', icon: 'logo.png' }),
+  }, { displayName: 'Settingsy', icon: 'settingsy.png' }),
 
   // Vive en el panel de abajo, que no es una barra lateral.
   ext('acme.bottom', {
     viewsContainers: { panel: [{ id: 'bottomView', title: 'Bottom', icon: 'mono.svg' }] },
     views: { bottomView: [{ id: 'bottomTree', name: 'Bottom' }] },
-  }, { displayName: 'Bottom', icon: 'logo.png' }),
+  }, { displayName: 'Bottom', icon: 'bottom.png' }),
 
   // Sin logo de marketplace: su icono es un codicon, como hacen varias extensiones.
   ext('acme.keys', {
@@ -71,7 +79,7 @@ module.exports = [
       explorer: [{ id: 'sectionsInExplorer', name: 'In Explorer' }],
       debug: [{ id: 'sectionsInDebug', name: 'In Debug' }],
     },
-  }, { displayName: 'Sections', icon: 'logo.png' }),
+  }, { displayName: 'Sections', icon: 'sections.png' }),
 
   // Contenedores de depuracion de VS Code: nunca deben salir.
   ext('vendor.devtools', {

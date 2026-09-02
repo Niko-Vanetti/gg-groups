@@ -767,3 +767,72 @@ test('UI: el aviso y el recuadro de elegida no se pisan', () => {
   assert.deepStrictEqual(css.match(/\.cell[^{,]*::after/g) || [], ['.cell.sel::after']);
   assert.deepStrictEqual(css.match(/\.cell[^{,]*::before/g) || [], ['.cell.updatable::before']);
 });
+
+// --- secciones del final ---
+
+test('UI: las secciones se pintan al final, despues de los sueltos', () => {
+  const ui = mount({
+    loose: [tile('c:a')],
+    sections: [{ name: 'Extensiones pasivas', section: true, tiles: [tile('x:p')] },
+               { name: 'Desactivadas', section: true, tiles: [tile('c:z', { off: true })] }],
+  });
+  const nombres = ui.folders().map((f) => f.textContent);
+  assert.deepStrictEqual(nombres, ['▸Extensiones pasivas', '▸Desactivadas']);
+  // Y despues de la fila de sueltos, no antes.
+  const hijos = [...ui.doc.getElementById('items').children];
+  assert.ok(hijos.indexOf(ui.cells()[0]) < hijos.indexOf(ui.folders()[0]));
+});
+
+test('UI: una seccion no se renombra, ni se arrastra, ni recibe nada', () => {
+  const ui = mount({ sections: [{ name: 'Desactivadas', section: true, tiles: [tile('c:z')] }] });
+  const cabecera = ui.folders()[0];
+  assert.strictEqual(cabecera.draggable, false);
+  assert.strictEqual(cabecera.oncontextmenu, null, 'ofreceria borrar algo que no es suyo');
+  cabecera.onclick();
+  ui.doc.querySelector('.kids .cell').ondragstart === undefined;
+  assert.strictEqual(ui.doc.querySelector('.kids .cell').ondragstart, null,
+    'sacarla de ahi a mano solo serviria para perderla de vista');
+});
+
+test('UI: lo de dentro de una seccion si tiene su menu', () => {
+  const ui = mount({ sections: [{ name: 'Desactivadas', section: true, tiles: [tile('c:z', { off: true })] }] });
+  ui.folders()[0].onclick();
+  const celda = ui.doc.querySelector('.kids .cell');
+  celda.oncontextmenu(ui.ev());
+  const rows = [...ui.doc.getElementById('menu').children].map((r) => r.textContent);
+  assert.ok(rows.includes(STR.enable), 'no habria forma de reencenderla');
+});
+
+test('UI: una seccion vacia no se envia, pero si llega no rompe', () => {
+  const ui = mount({ sections: [{ name: 'Desactivadas', section: true }] });
+  ui.folders()[0].onclick();
+  assert.strictEqual(ui.folders().length, 1);
+});
+
+// --- agrupar por dibujo ---
+
+test('UI: los del mismo dibujo se apilan aunque se llamen distinto', () => {
+  const ui = mount({ loose: [
+    tile('c:a', { label: 'C/C++', group: 'icon:abc' }),
+    tile('c:b', { label: 'C/C++ Themes', group: 'icon:abc' }),
+    tile('c:c', { label: 'C/C++ Pack', group: 'icon:abc' }),
+    tile('c:d', { label: 'Otra', group: 'icon:zzz' }),
+  ] });
+  assert.strictEqual(ui.stacks().length, 1);
+  assert.strictEqual(ui.stacks()[0].querySelector('.count').textContent, '3');
+  // La pila toma el nombre del primero, que es el que manda.
+  assert.ok(ui.stacks()[0].title.startsWith('C/C++ (3)'));
+});
+
+test('UI: dibujos distintos no se apilan aunque compartan nombre', () => {
+  const ui = mount({ loose: [
+    tile('c:a', { label: 'Logo', group: 'icon:uno' }),
+    tile('c:b', { label: 'Logo', group: 'icon:dos' }),
+  ] });
+  assert.strictEqual(ui.stacks().length, 0, 'son dos cosas distintas que se llaman igual');
+});
+
+test('UI: sin grupo se sigue apilando por el nombre, como antes', () => {
+  const ui = mount({ loose: [tile('c:a', { label: 'Claude' }), tile('c:b', { label: 'Claude' })] });
+  assert.strictEqual(ui.stacks().length, 1);
+});

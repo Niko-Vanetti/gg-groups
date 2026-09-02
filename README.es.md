@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-214%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-230%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -35,13 +35,13 @@ que creas de la forma evidente: arrastras un icono sobre otro, le pones nombre, 
 | **Verlo todo** | Cada contenedor de la barra lateral, sin menú de desbordamiento |
 | **Agrupar arrastrando** | Icono sobre icono crea una carpeta. Ese es el gesto entero |
 | **Reordenar como la barra real** | Por el borde se coloca entre iconos, por el centro se agrupa |
-| **Apilar los repetidos** | Tres iconos llamados *Claude Code* se juntan en uno con un **3** |
+| **Apilar los repetidos** | Los que comparten dibujo se juntan en uno con su número: C/C++, sus temas y su paquete son un icono |
 | **Renombrar lo que sea** | Iconos y carpetas, con el nombre que a ti te sirva |
 | **Esconder el ruido** | Clic derecho → ocultar. El ojo del pie los devuelve todos |
 | **Trabajar por grupos** | **Ctrl+clic** elige varios: se arrastran juntos, se apagan juntos, se desinstalan juntos |
 | **Las apagadas siguen a la vista** | Al desactivar una queda en gris al fondo en vez de desaparecer, a un clic de volver |
 | **Avisa de actualizaciones** | Un punto azul en las que tienen versión nueva, y clic derecho para instalarla. Solo consulta el mercado cuando tú lo pides |
-| **Extensiones pasivas** | Las instaladas que no aportan icono a ninguna barra —C/C++, YAML, WSL…— salen al abrir el ojo, con su nombre y su logo de la tienda |
+| **Dos secciones al final** | *Extensiones pasivas* (las instaladas sin icono en la barra, al abrir el ojo) y *Desactivadas*, cerrando el tablero |
 | **Bloque nativo, blindado** | Explorador, Buscar, Control de código fuente, Ejecutar y depurar, Extensiones — fijos arriba, en el orden de VS Code, imposibles de romper |
 
 </div>
@@ -149,6 +149,12 @@ para ejecutarla a mano.
 
 ## Decisiones de diseño que conviene saber
 
+**Se agrupa por el dibujo, no por el nombre.** Es lo que ves: C/C++, C/C++ Themes y el
+paquete de C/C++ son tres extensiones distintas con el mismo logo, y en la barra parecen —y
+son— lo mismo. Se juntan en un icono con su número. Y manda la más viva del grupo: si de los
+tres iconos de una extensión conservas uno activo, el grupo entero se pinta ahí y no
+escondido con los demás. Sin logo se agrupa por el nombre, como antes.
+
 **Refleja tus barras laterales, y detrás del ojo, todo lo demás.** El tablero es la barra:
 solo sale lo que tiene icono propio. Lo que instalaste y no aporta ninguno —C/C++, YAML,
 WSL, un tema— vive detrás del ojo como **extensión pasiva**, con su nombre y su logo de la
@@ -201,7 +207,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 214 pruebas, sin necesidad de VS Code
+npm test      # 230 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

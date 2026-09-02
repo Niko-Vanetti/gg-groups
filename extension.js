@@ -1,6 +1,7 @@
 const vscode = require('vscode');
 const fs = require('fs');
 const https = require('https');
+const crypto = require('crypto');
 const path = require('path');
 const { execFile, spawn } = require('child_process');
 
@@ -182,7 +183,9 @@ function installedExtensions(ctx) {
   try {
     registro = JSON.parse(fs.readFileSync(path.join(dir, 'extensions.json'), 'utf8'));
   } catch (e) {
-    console.error('[GG Groups] no se pudo leer el registro de extensiones', e);
+    // Que no haya registro es lo normal fuera de una instalacion (ejecutando desde el
+    // codigo, en las pruebas): no hay pasivas y ya esta. Solo se avisa de lo demas.
+    if (!e || e.code !== 'ENOENT') console.error('[GG Groups] registro de extensiones ilegible', e);
     return [];
   }
   if (!Array.isArray(registro)) return [];
@@ -299,6 +302,28 @@ function fetchUpdates(ids, instaladas) {
     req.on('error', reject);
     req.end(cuerpo);
   });
+}
+
+const HUELLAS = new Map();
+
+/**
+ * La huella del archivo del icono. Se agrupa por el dibujo y no por el nombre porque es
+ * lo que se ve: C/C++, sus temas y su paquete son tres extensiones distintas con el mismo
+ * logo, y en la barra parecen —y son— lo mismo. Sin icono se cae al nombre, que es como
+ * se agrupaban antes los tres "Claude Code".
+ */
+function iconGroup(icon, label) {
+  const ruta = icon && icon.uri && icon.uri.fsPath;
+  if (!ruta) return 'name:' + String(label || '').trim().toLowerCase();
+  if (HUELLAS.has(ruta)) return HUELLAS.get(ruta);
+  let clave;
+  try {
+    clave = 'icon:' + crypto.createHash('sha1').update(fs.readFileSync(ruta)).digest('hex').slice(0, 16);
+  } catch {
+    clave = 'file:' + ruta;                      // ilegible: al menos no se mezcla con otro
+  }
+  HUELLAS.set(ruta, clave);
+  return clave;
 }
 
 /** El dibujo oficial de un codicon, si existe entre los que se distribuyen. */
@@ -544,7 +569,10 @@ function discover(ctx) {
   }
 
   const seen = new Set();
-  return tiles.filter((x) => !seen.has(x.key) && seen.add(x.key));
+  const unicas = tiles.filter((x) => !seen.has(x.key) && seen.add(x.key));
+  // El bloque nativo nunca se agrupa: va fijo y en el orden de VS Code.
+  for (const x of unicas) x.group = x.native ? 'native:' + x.key : iconGroup(x.icon, x.label);
+  return unicas;
 }
 
 /**
@@ -1172,6 +1200,59 @@ class Board {
     return list;
   }
 
+  /**
+   * Reparte las baldosas en grupos de icono igual y decide donde vive cada grupo. Manda
+   * la mas viva de sus baldosas: si de los tres iconos de una extension queda uno activo,
+   * el grupo entero se pinta donde ese, no escondido con los demas.
+   */
+  layout() {
+    const folders = this.folders;
+    const hidden = this.hidden;
+    const rango = (x) => (x.off ? 2 : x.passive ? 3 : hidden.has(x.key) ? 1 : 0);
+
+    const grupos = new Map();
+    for (const x of this.visible()) {
+      if (x.native) continue;
+      const k = x.group || 'key:' + x.key;
+      if (!grupos.has(k)) grupos.set(k, []);
+      grupos.get(k).push(x);
+    }
+
+    const enCarpeta = new Map();
+    const posicion = new Map();
+    for (const f of folders) {
+      if (f.locked) continue;
+      f.keys.forEach((k, i) => { enCarpeta.set(k, f.name); posicion.set(k, i); });
+    }
+
+    const fuera = { folders: new Map(), loose: [], passive: [], off: [] };
+    for (const f of folders) if (!f.locked) fuera.folders.set(f.name, []);
+
+    for (const tiles of grupos.values()) {
+      const lista = [...tiles].sort((a, b) => rango(a) - rango(b));
+      const grupo = { lider: lista[0], tiles: lista };
+      const r = rango(grupo.lider);
+      if (r === 3) fuera.passive.push(grupo);
+      else if (r === 2) fuera.off.push(grupo);
+      else {
+        const carpeta = enCarpeta.get(grupo.lider.key);
+        if (carpeta && fuera.folders.has(carpeta)) fuera.folders.get(carpeta).push(grupo);
+        else fuera.loose.push(grupo);
+      }
+    }
+
+    const alfabetico = (a, b) => this.nameOf(a.lider).localeCompare(this.nameOf(b.lider));
+    const porOrden = (mapa) => (a, b) => {
+      const at = (g) => (mapa.has(g.lider.key) ? mapa.get(g.lider.key) : 1e9);
+      return at(a) - at(b) || alfabetico(a, b);
+    };
+    fuera.loose.sort(porOrden(new Map(this.order.map((k, i) => [k, i]))));
+    for (const lista of fuera.folders.values()) lista.sort(porOrden(posicion));
+    fuera.passive.sort(alfabetico);
+    fuera.off.sort(alfabetico);
+    return fuera;
+  }
+
   render() {
     if (!this.panel) return;
     const w = this.panel.webview;
@@ -1186,10 +1267,22 @@ class Board {
       off: !!x.off,
       fixed: !!x.native || x.ext === 'vscode',
       passive: !!x.passive,
+      group: x.group || 'key:' + x.key,
       update: this.updates.get(String(x.ext).toLowerCase()) || null,
       hidden: hidden.has(x.key),
       renamed: typeof names[x.key] === 'string',
     });
+    const reparto = this.layout();
+    const aplanar = (grupos) => grupos.flatMap((g) => g.tiles).map(pack);
+    const secciones = [];
+    // Al final del todo, y solo si tienen algo que enseñar.
+    if (reparto.passive.length) {
+      secciones.push({ name: t('Passive extensions'), section: true, tiles: aplanar(reparto.passive) });
+    }
+    if (reparto.off.length) {
+      secciones.push({ name: t('Disabled'), section: true, tiles: aplanar(reparto.off) });
+    }
+
     w.postMessage({
       type: 'state',
       showHidden: this.showHidden,
@@ -1198,10 +1291,12 @@ class Board {
         name: f.name,
         locked: !!f.locked,
         // El bloque nativo se pinta siempre en el orden de la barra de VS Code.
-        tiles: this.offLast((f.locked ? NATIVE_KEYS.filter((k) => f.keys.includes(k)) : f.keys)
-          .map((k) => byKey.get(k)).filter(Boolean)).map(pack),
+        tiles: f.locked
+          ? NATIVE_KEYS.filter((k) => f.keys.includes(k)).map((k) => byKey.get(k)).filter(Boolean).map(pack)
+          : aplanar(reparto.folders.get(f.name) || []),
       })),
-      loose: this.looseTiles(folders).map(pack),
+      loose: aplanar(reparto.loose),
+      sections: secciones,
     });
   }
 
@@ -1509,5 +1604,5 @@ module.exports = {
   Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale,
   NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
   restartCommand, findPython, modKey, cleanEnv, installedExtensions, displayName,
-  marketplaceQuery, newerVersion, parseUpdates,
+  marketplaceQuery, newerVersion, parseUpdates, iconGroup,
 };

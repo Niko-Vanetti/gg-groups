@@ -60,5 +60,7 @@
   "{0} with a new version. Right-click to update.": "{0} con versión nueva. Clic derecho para actualizar.",
   "Everything is up to date.": "Todo está al día.",
   "No installed extensions to check.": "No hay extensiones instaladas que comprobar.",
-  "Use the Update button on this page.": "Usa el botón Actualizar de esta ficha."
+  "Use the Update button on this page.": "Usa el botón Actualizar de esta ficha.",
+  "Passive extensions": "Extensiones pasivas",
+  "Disabled": "Desactivadas"
 }

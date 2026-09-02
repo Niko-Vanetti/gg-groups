@@ -284,3 +284,6 @@ body {
   background: var(--vscode-activityBarBadge-background, #0078d4);
   border: 1px solid var(--vscode-sideBar-background, #181818);
 }
+
+/* Secciones del final: son un cajon, no una carpeta que el usuario haya hecho. */
+.cell.folder.section .folder-name { opacity: .6; font-style: italic; }

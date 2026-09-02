@@ -56,18 +56,21 @@
    * como un solo icono con el numero en la esquina. Con uno solo no se apila nada.
    */
   function stacked(list) {
+    const clave = (x) => x.group || (x.label || '').trim().toLowerCase();
     const groups = new Map();
     for (const x of list) {
-      const k = (x.label || '').trim().toLowerCase();
+      const k = clave(x);
       if (!groups.has(k)) groups.set(k, []);
       groups.get(k).push(x);
     }
     const out = [], done = new Set();
     for (const x of list) {
-      const k = (x.label || '').trim().toLowerCase();
+      const k = clave(x);
       if (done.has(k)) continue;
       done.add(k);
       const g = groups.get(k);
+      // El primero manda: la extension viene ordenada con la mas viva delante, asi que
+      // la pila toma su nombre y su dibujo.
       out.push(g.length > 1 ? { stack: 'stack:' + k, label: x.label, icon: x.icon, mask: x.mask, tiles: g } : x);
     }
     return out;
@@ -172,7 +175,7 @@
   }
 
   /** Un icono de extension, con el mismo tamano y foco que los de la barra real. */
-  function cell(t, inside, list, i, locked) {
+  function cell(t, inside, list, i, locked, seccion) {
     const nextKey = list && list[i + 1] ? (list[i + 1].key || (list[i + 1].tiles || [])[0].key) : null;
     const n = el('div', 'cell' + (active === t.key ? ' active' : '') +
       (inside ? ' inside' : '') + (t.hidden ? ' faded' : '') + (t.off ? ' off' : '') +
@@ -197,14 +200,17 @@
       n.classList.add('locked');
       return n;
     }
-    draggable(n, [t.key]);
-    dropTarget(n, [t.key], nextKey, inside);
+    // En una seccion no se reordena: lo que hay ahi lo decide su estado, no el usuario.
+    if (!seccion) {
+      draggable(n, [t.key]);
+      dropTarget(n, [t.key], nextKey, inside);
+    }
     n.oncontextmenu = (e) => menu(e, menuFor(t));
     return n;
   }
 
   /** Varios iconos del mismo nombre: uno solo con el numero, que se abre al pulsarlo. */
-  function stackCell(s, list, i) {
+  function stackCell(s, list, i, seccion) {
     const nextKey = list && list[i + 1] ? (list[i + 1].key || (list[i + 1].tiles || [])[0].key) : null;
     const keys = s.tiles.map((x) => x.key);
     const n = el('div', 'cell stack' + (open.has(s.stack) ? ' open' : ''));
@@ -220,8 +226,10 @@
       persist();
       render();
     };
-    draggable(n, keys);
-    dropTarget(n, keys, nextKey, false);
+    if (!seccion) {
+      draggable(n, keys);
+      dropTarget(n, keys, nextKey, false);
+    }
     n.oncontextmenu = (e) => menu(e, [
       [S.hide, () => post({ type: 'hide', keys })],
       [S.sort, () => post({ type: 'sort', folder: null })],
@@ -231,8 +239,10 @@
 
   /** Una carpeta: cabecera de fila entera que despliega sus iconos debajo. */
   function folderCell(f) {
-    const n = el('div', 'cell folder' + (open.has(f.name) ? ' open' : '') + (f.locked ? ' locked' : ''));
-    n.draggable = !f.locked;
+    const fijo = f.locked || f.section;
+    const n = el('div', 'cell folder' + (open.has(f.name) ? ' open' : '') +
+      (f.locked ? ' locked' : '') + (f.section ? ' section' : ''));
+    n.draggable = !fijo;
     n.title = f.name;
     n.dataset.folder = f.name;
     el('span', 'folder-icon', n).textContent = open.has(f.name) ? '▾' : '▸';
@@ -243,7 +253,7 @@
       persist();
       render();
     };
-    if (!f.locked) {
+    if (!fijo) {
       n.oncontextmenu = (e) => menu(e, [
         [S.sort, () => post({ type: 'sort', folder: f.name })],
         [S.rename, () => post({ type: 'rename', folder: f.name })],
@@ -256,14 +266,14 @@
     };
     n.ondragend = () => { drag = null; clearOver(); };
     n.ondragover = (e) => {
-      if (!drag || f.locked) return;
+      if (!drag || fijo) return;
       e.preventDefault();
       e.stopPropagation();
       clearOver();
       mark(n, drag.folder ? 'center' : zone(e, n, true));
     };
     n.ondrop = (e) => {
-      if (!drag || f.locked) return;
+      if (!drag || fijo) return;
       e.preventDefault();
       e.stopPropagation();
       if (!drag.keys) {
@@ -351,15 +361,15 @@
   }
 
   /** Pinta una lista de baldosas aplicando el apilado por nombre. */
-  function paint(list, parent, inside, locked) {
+  function paint(list, parent, inside, locked, seccion) {
     // En un bloque bloqueado no se apila nada: los iconos van uno a uno, en su orden.
     const rows = locked ? list : stacked(list);
     rows.forEach((x, i) => {
-      if (!x.stack) return parent.appendChild(cell(x, inside, rows, i, locked));
-      parent.appendChild(stackCell(x, rows, i));
+      if (!x.stack) return parent.appendChild(cell(x, inside, rows, i, locked, seccion));
+      parent.appendChild(stackCell(x, rows, i, seccion));
       if (!open.has(x.stack)) return;
       const box = el('div', 'kids pile', parent);
-      x.tiles.forEach((sub, j) => box.appendChild(cell(sub, inside, x.tiles, j)));
+      x.tiles.forEach((sub, j) => box.appendChild(cell(sub, inside, x.tiles, j, false, seccion)));
     });
   }
 
@@ -393,6 +403,14 @@
 
     if (folders.length && loose.length) el('div', 'sep', items);
     paint(loose, items, false);
+
+    // Las secciones cierran el tablero: lo que no esta en la barra, y lo apagado.
+    for (const f of (Array.isArray(state.sections) ? state.sections : [])) {
+      items.appendChild(folderCell(f));
+      if (!open.has(f.name)) continue;
+      const kids = el('div', 'kids', items);
+      paint(f.tiles || [], kids, true, false, true);
+    }
     renderActions();
   }
 
