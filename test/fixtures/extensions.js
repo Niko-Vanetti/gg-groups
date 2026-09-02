@@ -95,6 +95,18 @@ module.exports = [
     },
   }, { displayName: 'Dev Tools', icon: 'logo.png' }),
 
+  // Un paquete de extensiones: se instala uno y llegan varios. Para quien lo instalo son
+  // una sola cosa, aunque en la barra sean iconos distintos y con otro dibujo cada uno.
+  ext('acme.suite', {}, { displayName: 'Acme Suite', extensionPack: ['acme.one', 'acme.two'] }),
+  ext('acme.one', {
+    viewsContainers: { activitybar: [{ id: 'oneView', title: 'One', icon: 'mono.svg' }] },
+    views: { oneView: [{ id: 'oneTree', name: 'One' }] },
+  }, { displayName: 'One', icon: 'one.png' }),
+  ext('acme.two', {
+    viewsContainers: { activitybar: [{ id: 'twoView', title: 'Two', icon: 'mono.svg' }] },
+    views: { twoView: [{ id: 'twoTree', name: 'Two' }] },
+  }, { displayName: 'Two', icon: 'two.png' }),
+
   // Llena un contenedor que pone el propio VS Code: sin vistas propias en la barra, pero
   // es suyo el icono del Explorador remoto. No debe salir ademas como pasiva.
   ext('ms-vscode.remote-explorer', {}, { displayName: 'Remote Explorer' }),

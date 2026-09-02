@@ -6,7 +6,7 @@
 
 **Your whole activity bar in one panel — nothing hidden behind `…` ever again.**
 
-[![tests](https://img.shields.io/badge/tests-234%20passing-2E8FE6)](test)
+[![tests](https://img.shields.io/badge/tests-245%20passing-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![license](https://img.shields.io/badge/license-MIT-4FC3F7)](LICENSE)
 
@@ -33,7 +33,7 @@ obvious way: drag one icon onto another, name the folder, done.
 | | |
 |---|---|
 | **See everything** | Every sidebar container, no overflow menu |
-| **Group by dragging** | Icon onto icon creates a folder. That's the whole gesture |
+| **Join by dragging** | Icon onto icon joins them into one. Named folders come from the button |
 | **Reorder like the real bar** | Drop on an edge to place between icons, on the center to group |
 | **Stack duplicates** | Icons sharing the same artwork collapse into one with a count: C/C++, its themes and its pack are one icon |
 | **Rename anything** | Icons and folders, whatever makes sense to you |
@@ -66,7 +66,8 @@ Then reload VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) and click th
 | Gesture | What happens |
 |---|---|
 | **Click an icon** | Opens that extension's panel |
-| **Drag icon → icon** | Creates a folder with both |
+| **Drag icon → icon** | Joins them into a single icon with a count |
+| **Right-click a stack** | Split the group |
 | **Drag to a folder header** | Moves it in |
 | **Drag to an edge** | Places it between two icons |
 | **Drag to empty space** | Takes it out of its folder |
@@ -148,7 +149,13 @@ clipboard to run by hand.
 
 ## Design decisions worth knowing
 
-**It groups by artwork, not by name.** That's what you see: C/C++, C/C++ Themes and the C/C++
+**It groups by family, not by name.** Three things are joined: whatever an extension pack
+brought along — you install *Extension Pack for Java* and seven icons appear, which to you
+are one thing — whatever shares the same artwork, and whatever you join yourself by dragging
+one icon onto another. Right-click a stack to split it, and that wins over the automatic
+grouping.
+
+**Artwork counts too.** That's what you see: C/C++, C/C++ Themes and the C/C++
 pack are three different extensions sharing one logo, and in the bar they look — and are —
 the same thing. They collapse into one icon with a count. The liveliest member wins: if you
 keep one of an extension's three icons active, the whole group renders there instead of
@@ -205,7 +212,7 @@ saved state is coherent.
 
 ```bash
 npm install
-npm test      # 234 tests, no VS Code needed
+npm test      # 245 tests, no VS Code needed
 ```
 
 The suite runs the real `extension.js` against a stubbed VS Code API and the real webview

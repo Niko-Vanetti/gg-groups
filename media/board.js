@@ -152,7 +152,7 @@
       e.preventDefault();
       e.stopPropagation();
       const z = zone(e, n, false, inside);
-      if (z === 'center') post({ type: 'group', keys: drag.keys, target: keys[0] });
+      if (z === 'center') post({ type: 'merge', keys: drag.keys, target: keys[0] });
       else post({ type: 'move', keys: drag.keys, before: z === 'before' ? keys[0] : nextKey });
     };
   }
@@ -220,7 +220,9 @@
   function stackCell(s, list, i, seccion) {
     const nextKey = list && list[i + 1] ? (list[i + 1].key || (list[i + 1].tiles || [])[0].key) : null;
     const keys = s.tiles.map((x) => x.key);
-    const n = el('div', 'cell stack' + (open.has(s.stack) ? ' open' : ''));
+    // Elegida cuando lo estan todas las suyas: es lo que deja un Ctrl+clic encima.
+    const elegida = keys.length && keys.every((k) => sel.has(k));
+    const n = el('div', 'cell stack' + (open.has(s.stack) ? ' open' : '') + (elegida ? ' sel' : ''));
     n.title = s.label + ' (' + s.tiles.length + ')';
     n.dataset.stack = s.stack;
     n.appendChild(art(s));
@@ -238,6 +240,7 @@
       dropTarget(n, keys, nextKey, false);
     }
     n.oncontextmenu = (e) => menu(e, [
+      [S.split, () => post({ type: 'split', keys })],
       [S.hide, () => post({ type: 'hide', keys })],
       [S.sort, () => post({ type: 'sort', folder: null })],
     ]);

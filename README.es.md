@@ -6,7 +6,7 @@
 
 **Toda tu barra de actividad en un panel — nunca más nada escondido tras los `…`.**
 
-[![pruebas](https://img.shields.io/badge/pruebas-234%20pasando-2E8FE6)](test)
+[![pruebas](https://img.shields.io/badge/pruebas-245%20pasando-2E8FE6)](test)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-1565C0)](https://code.visualstudio.com/)
 [![licencia](https://img.shields.io/badge/licencia-MIT-4FC3F7)](LICENSE)
 
@@ -33,7 +33,7 @@ que creas de la forma evidente: arrastras un icono sobre otro, le pones nombre, 
 | | |
 |---|---|
 | **Verlo todo** | Cada contenedor de la barra lateral, sin menú de desbordamiento |
-| **Agrupar arrastrando** | Icono sobre icono crea una carpeta. Ese es el gesto entero |
+| **Juntar arrastrando** | Icono sobre icono los junta en uno. Las carpetas con nombre se crean con el botón |
 | **Reordenar como la barra real** | Por el borde se coloca entre iconos, por el centro se agrupa |
 | **Apilar los repetidos** | Los que comparten dibujo se juntan en uno con su número: C/C++, sus temas y su paquete son un icono |
 | **Renombrar lo que sea** | Iconos y carpetas, con el nombre que a ti te sirva |
@@ -66,7 +66,8 @@ Después recarga VS Code (`Ctrl+Shift+P` → *Developer: Reload Window*) y pulsa
 | Gesto | Qué pasa |
 |---|---|
 | **Clic en un icono** | Abre el panel de esa extensión |
-| **Arrastrar icono → icono** | Crea una carpeta con los dos |
+| **Arrastrar icono → icono** | Los junta en un solo icono con su número |
+| **Clic derecho en una pila** | Separar el grupo |
 | **Arrastrar a la cabecera de una carpeta** | Lo mete dentro |
 | **Arrastrar a un borde** | Lo coloca entre dos iconos |
 | **Arrastrar al vacío** | Lo saca de su carpeta |
@@ -149,7 +150,12 @@ para ejecutarla a mano.
 
 ## Decisiones de diseño que conviene saber
 
-**Se agrupa por el dibujo, no por el nombre.** Es lo que ves: C/C++, C/C++ Themes y el
+**Se agrupa por familias, no por el nombre.** Se juntan tres cosas: lo que un paquete de
+extensiones trajo consigo —instalas *Extension Pack for Java* y aparecen siete iconos, que
+para ti son una sola cosa—, lo que comparte el mismo dibujo, y lo que juntes tú arrastrando
+un icono sobre otro. Clic derecho en una pila la separa, y eso manda sobre lo automático.
+
+**El dibujo también cuenta.** Es lo que ves: C/C++, C/C++ Themes y el
 paquete de C/C++ son tres extensiones distintas con el mismo logo, y en la barra parecen —y
 son— lo mismo. Se juntan en un icono con su número. Y manda la más viva del grupo: si de los
 tres iconos de una extensión conservas uno activo, el grupo entero se pinta ahí y no
@@ -207,7 +213,7 @@ derecha, y verifica que el estado guardado es coherente.
 
 ```bash
 npm install
-npm test      # 234 pruebas, sin necesidad de VS Code
+npm test      # 245 pruebas, sin necesidad de VS Code
 ```
 
 La suite ejecuta el `extension.js` real contra una API de VS Code simulada, y el webview real

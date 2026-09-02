@@ -1674,3 +1674,75 @@ test('el Explorador remoto es de quien lo llena, no un icono de fabrica', async 
     'siendo de fabrica no se podria apagar, y se repetiria entre las pasivas');
   b.restore();
 });
+
+// --- familias: lo que se instala junto es una sola cosa ---
+
+test('lo que llego dentro de un paquete va junto, aunque el dibujo sea otro', () => {
+  // Es el caso de Java: se instala un paquete y aparecen seis iconos distintos.
+  const uno = tiles.find((x) => x.key === 'c:oneView');
+  const dos = tiles.find((x) => x.key === 'c:twoView');
+  assert.ok(uno && dos, 'falta la pieza de prueba');
+  assert.notStrictEqual(iconGroup(uno.icon, uno.label), iconGroup(dos.icon, dos.label));
+  assert.strictEqual(uno.group, dos.group, 'el paquete las trajo juntas: van juntas');
+});
+
+test('y lo que no comparte ni paquete ni dibujo sigue aparte', () => {
+  const uno = tiles.find((x) => x.key === 'c:oneView');
+  const notes = tiles.find((x) => x.key === 'c:notesView');
+  assert.notStrictEqual(uno.group, notes.group);
+});
+
+test('arrastrar un icono sobre otro los junta para siempre', async () => {
+  const b = makeBoard();
+  await b.refresh();
+  const antes = b.tiles.find((x) => x.key === 'c:notesView').group;
+  await b.onMessage({ type: 'merge', keys: ['c:notesView'], target: 'c:keysView' });
+  const notes = b.tiles.find((x) => x.key === 'c:notesView');
+  const keys = b.tiles.find((x) => x.key === 'c:keysView');
+  assert.strictEqual(notes.group, keys.group, 'no se juntaron');
+  assert.notStrictEqual(notes.group, antes);
+  assert.strictEqual(b.store.get('viewGroups.merged').length, 1, 'no se recordo');
+});
+
+test('juntar no toca ni los nativos ni lo que es de VS Code', async () => {
+  const b = makeBoard();
+  await b.refresh();
+  await b.onMessage({ type: 'merge', keys: [NATIVE_KEYS[0]], target: 'c:keysView' });
+  await b.onMessage({ type: 'merge', keys: ['c:notesView'], target: NATIVE_KEYS[0] });
+  assert.deepStrictEqual(b.store.get('viewGroups.merged') || [], []);
+});
+
+test('separar deshace la familia, aunque venga de un paquete', async () => {
+  const b = makeBoard();
+  await b.refresh();
+  assert.strictEqual(b.tiles.find((x) => x.key === 'c:oneView').group,
+    b.tiles.find((x) => x.key === 'c:twoView').group);
+  await b.onMessage({ type: 'split', keys: ['c:oneView', 'c:twoView'] });
+  assert.notStrictEqual(b.tiles.find((x) => x.key === 'c:oneView').group,
+    b.tiles.find((x) => x.key === 'c:twoView').group);
+});
+
+test('separar una sola no separa nada', async () => {
+  const b = makeBoard();
+  await b.refresh();
+  await b.onMessage({ type: 'split', keys: ['c:oneView'] });
+  assert.deepStrictEqual(b.store.get('viewGroups.split') || [], []);
+});
+
+test('volver a juntarlas manda sobre haberlas separado', async () => {
+  const b = makeBoard();
+  await b.refresh();
+  await b.onMessage({ type: 'split', keys: ['c:oneView', 'c:twoView'] });
+  await b.onMessage({ type: 'merge', keys: ['c:oneView'], target: 'c:twoView' });
+  assert.strictEqual(b.tiles.find((x) => x.key === 'c:oneView').group,
+    b.tiles.find((x) => x.key === 'c:twoView').group);
+});
+
+test('la familia se coloca donde este su icono mas adelantado', async () => {
+  const b = makeBoard();
+  await b.refresh();
+  const sueltas = b.last().loose.map((x) => x.key);
+  const ultima = sueltas[sueltas.length - 1];
+  await b.onMessage({ type: 'move', keys: [ultima], before: sueltas[0] });
+  assert.strictEqual(b.last().loose[0].key, ultima, 'arrastrar uno debe colocar al grupo');
+});

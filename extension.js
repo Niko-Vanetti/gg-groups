@@ -16,6 +16,8 @@ const KEY_LOCALE = 'viewGroups.locale';
 // Catalogo de lo que se ha visto alguna vez, para reconocer lo que ya no esta cargado.
 const KEY_SEEN = 'viewGroups.seen';
 const KEY_OFF = 'viewGroups.off';
+const KEY_MERGED = 'viewGroups.merged';                 // iconos que el usuario junto
+const KEY_SPLIT = 'viewGroups.split';                   // y los que saco de su familia
 const KEY_QUEUE = 'viewGroups.queue';                   // solo para limpiar el estado de versiones viejas
 const KEY_REMOVED = 'viewGroups.removed';               // solo para limpiar el estado de versiones viejas
 /**
@@ -212,6 +214,9 @@ function installedExtensions(ctx) {
     }
     fuera.push({
       ext: id,
+      // Lo que ese paquete arrastro consigo al instalarse: Java se instala una vez y
+      // aparecen seis. En la barra son seis iconos, pero para el usuario son una cosa.
+      pack: Array.isArray(pkg.extensionPack) ? pkg.extensionPack : [],
       version: e.version || pkg.version || '',
       label: displayName(carpeta, pkg) || id,
       owner: (e.metadata || {}).publisherDisplayName || pkg.publisher || '',
@@ -311,6 +316,28 @@ function fetchUpdates(ids, instaladas) {
 }
 
 const HUELLAS = new Map();
+
+/**
+ * Conjuntos que se van uniendo. Sirve para juntar en una sola familia lo que llego junto
+ * en un paquete y lo que ademas comparte dibujo, sin importar en que orden se descubra.
+ */
+function familias() {
+  const padre = new Map();
+  const raiz = (a) => {
+    while (padre.get(a) && padre.get(a) !== a) a = padre.get(a);
+    return a;
+  };
+  return {
+    raiz: (a) => (padre.has(a) ? raiz(a) : a),
+    unir(a, b) {
+      if (!a || !b || a === b) return;
+      if (!padre.has(a)) padre.set(a, a);
+      if (!padre.has(b)) padre.set(b, b);
+      const x = raiz(a), y = raiz(b);
+      if (x !== y) padre.set(x, y);
+    },
+  };
+}
 
 /**
  * La huella del archivo del icono. Se agrupa por el dibujo y no por el nombre porque es
@@ -523,7 +550,7 @@ function pickIcon(ctx, base, marketplace, sidebar) {
  * contenedor, los contenedores de depuracion y las extensiones sin icono (temas, idiomas).
  * Un manifiesto raro no puede tumbar la extension: cada uno va en su propio try.
  */
-function discover(ctx) {
+function discover(ctx, juntadas, separadas) {
   const tiles = NATIVE.map(([key, cmd, name, icon]) => ({
     key, cmd, label: t(name), owner: 'Visual Studio Code', ext: 'vscode', native: true,
     icon: codiconIcon(ctx, icon),
@@ -571,7 +598,8 @@ function discover(ctx) {
   // habia forma de llegar a ellas desde aqui.
   const conIcono = new Set(tiles.map((x) => String(x.ext).toLowerCase()));
   const cargadas = new Set(vscode.extensions.all.map((e) => String(e.id).toLowerCase()));
-  for (const e of installedExtensions(ctx)) {
+  const instaladas = installedExtensions(ctx);
+  for (const e of instaladas) {
     const id = e.ext.toLowerCase();
     if (conIcono.has(id) || id === 'niko.view-groups') continue;
     conIcono.add(id);
@@ -583,8 +611,40 @@ function discover(ctx) {
 
   const seen = new Set();
   const unicas = tiles.filter((x) => !seen.has(x.key) && seen.add(x.key));
-  // El bloque nativo nunca se agrupa: va fijo y en el orden de VS Code.
-  for (const x of unicas) x.group = x.native ? 'native:' + x.key : iconGroup(x.icon, x.label);
+
+  // Una familia por producto. Se unen tres cosas: lo que un paquete trajo consigo, lo
+  // que comparte dibujo, y lo que el usuario haya juntado a mano. Lo que el usuario
+  // separo a mano manda sobre las dos primeras.
+  const sueltas = new Set((separadas || []).map((x) => String(x).toLowerCase()));
+  const fam = familias();
+  const suelta = (id) => sueltas.has(String(id).toLowerCase());
+  for (const e of instaladas) {
+    if (suelta(e.ext)) continue;
+    for (const hijo of e.pack || []) if (!suelta(hijo)) fam.unir(e.ext.toLowerCase(), String(hijo).toLowerCase());
+  }
+  for (const e of vscode.extensions.all) {
+    const pack = (e.packageJSON || {}).extensionPack;
+    if (!Array.isArray(pack) || suelta(e.id)) continue;
+    for (const hijo of pack) if (!suelta(hijo)) fam.unir(String(e.id).toLowerCase(), String(hijo).toLowerCase());
+  }
+  // El dibujo: lo que se ve igual va junto aunque se llame distinto.
+  const porDibujo = new Map();
+  for (const x of unicas) {
+    if (x.native || !x.ext || x.ext === 'vscode' || suelta(x.ext)) continue;
+    const d = iconGroup(x.icon, x.label);
+    if (porDibujo.has(d)) fam.unir(porDibujo.get(d), x.ext.toLowerCase());
+    else porDibujo.set(d, x.ext.toLowerCase());
+  }
+  for (const [a, b] of juntadas || []) {
+    if (!suelta(a) && !suelta(b)) fam.unir(String(a).toLowerCase(), String(b).toLowerCase());
+  }
+
+  for (const x of unicas) {
+    // El bloque nativo y lo que es de VS Code van fijos y nunca se agrupan.
+    x.group = x.native || !x.ext || x.ext === 'vscode'
+      ? 'solo:' + x.key
+      : suelta(x.ext) ? 'ext:' + x.ext.toLowerCase() : 'fam:' + fam.raiz(x.ext.toLowerCase());
+  }
   return unicas;
 }
 
@@ -683,7 +743,7 @@ function insert(list, keys, before) {
 class Board {
   constructor(ctx) {
     this.ctx = ctx;
-    this.tiles = discover(ctx);
+    this.tiles = discover(ctx, this.merged, this.split);
     // Lo que el mercado dijo la ultima vez que se le pregunto. No se guarda entre
     // sesiones: es la foto de una consulta que el usuario pidio, no un hecho del disco.
     this.updates = new Map();
@@ -735,7 +795,7 @@ class Board {
    * guardado: si no, el interruptor se quedaria sin sitio desde donde volver a encenderlas.
    */
   async refresh() {
-    const live = await keepClickable(discover(this.ctx));
+    const live = await keepClickable(discover(this.ctx, this.merged, this.split));
 
     // Lo que se acaba de desinstalar sigue cargado hasta recargar la ventana: no se
     // vuelve a anotar, o su icono se quedaria en gris como si solo estuviera apagado.
@@ -1010,6 +1070,48 @@ class Board {
     }
   }
 
+  /** Parejas que el usuario junto a mano arrastrando un icono sobre otro. */
+  get merged() {
+    const raw = this.ctx.globalState.get(KEY_MERGED, []);
+    return Array.isArray(raw) ? raw.filter((p) => Array.isArray(p) && p.length === 2) : [];
+  }
+
+  /** Extensiones que el usuario saco de su familia: mandan sobre el paquete y el dibujo. */
+  get split() {
+    return this.list(KEY_SPLIT);
+  }
+
+  /** Junta dos iconos en uno: la familia de uno pasa a ser la del otro. */
+  async mergeTiles(keys, target) {
+    const destino = this.tiles.find((x) => x.key === target);
+    if (!destino || !destino.ext || destino.ext === 'vscode' || destino.native) return;
+    const exts = (Array.isArray(keys) ? keys : [])
+      .map((k) => this.tiles.find((x) => x.key === k))
+      .filter((x) => x && x.ext && x.ext !== 'vscode' && !x.native && x.ext !== destino.ext)
+      .map((x) => x.ext);
+    if (!exts.length) return;
+    // Juntarlas deshace el "sepáralas" de antes: la ultima intencion es la que vale.
+    const sueltas = new Set([destino.ext, ...exts].map((e) => e.toLowerCase()));
+    await this.ctx.globalState.update(KEY_SPLIT, this.split.filter((e) => !sueltas.has(String(e).toLowerCase())));
+    await this.ctx.globalState.update(KEY_MERGED,
+      [...this.merged, ...[...new Set(exts)].map((e) => [e, destino.ext])]);
+    await this.refresh();
+  }
+
+  /** Saca de su familia lo que se le pase: cada extension vuelve a tener su icono. */
+  async splitTiles(keys) {
+    const exts = [...new Set((Array.isArray(keys) ? keys : [])
+      .map((k) => this.tiles.find((x) => x.key === k))
+      .filter((x) => x && x.ext && x.ext !== 'vscode' && !x.native)
+      .map((x) => x.ext))];
+    if (exts.length < 2) return;                 // separar una sola no la separa de nada
+    const bajas = new Set(exts.map((e) => e.toLowerCase()));
+    await this.ctx.globalState.update(KEY_MERGED,
+      this.merged.filter(([a, b]) => !bajas.has(String(a).toLowerCase()) && !bajas.has(String(b).toLowerCase())));
+    await this.ctx.globalState.update(KEY_SPLIT, [...new Set([...this.split, ...exts])]);
+    await this.refresh();
+  }
+
   /** Deja de recordar una extension apagada: su icono desaparece del tablero. */
   async forget(key) {
     const quedan = this.seen.filter((o) => o.key !== key);
@@ -1246,8 +1348,12 @@ class Board {
     const fuera = { folders: new Map(), loose: [], passive: [], off: [] };
     for (const f of folders) if (!f.locked) fuera.folders.set(f.name, []);
 
+    // Entre las igual de vivas manda el orden que el usuario les dio: la que arrastro
+    // delante es la que da la cara por la familia.
+    const orden = new Map(this.order.map((k, i) => [k, i]));
+    const suOrden = (x) => (orden.has(x.key) ? orden.get(x.key) : posicion.has(x.key) ? posicion.get(x.key) : 1e9);
     for (const tiles of grupos.values()) {
-      const lista = [...tiles].sort((a, b) => rango(a) - rango(b));
+      const lista = [...tiles].sort((a, b) => rango(a) - rango(b) || suOrden(a) - suOrden(b));
       const grupo = { lider: lista[0], tiles: lista };
       const r = rango(grupo.lider);
       if (r === 3) fuera.passive.push(grupo);
@@ -1260,11 +1366,13 @@ class Board {
     }
 
     const alfabetico = (a, b) => this.nameOf(a.lider).localeCompare(this.nameOf(b.lider));
+    // El sitio de una familia es el de la baldosa suya que este mas arriba: arrastrar
+    // cualquiera de sus iconos coloca al grupo entero, que es lo que se espera.
     const porOrden = (mapa) => (a, b) => {
-      const at = (g) => (mapa.has(g.lider.key) ? mapa.get(g.lider.key) : 1e9);
+      const at = (g) => Math.min(...g.tiles.map((x) => (mapa.has(x.key) ? mapa.get(x.key) : 1e9)));
       return at(a) - at(b) || alfabetico(a, b);
     };
-    fuera.loose.sort(porOrden(new Map(this.order.map((k, i) => [k, i]))));
+    fuera.loose.sort(porOrden(orden));
     for (const lista of fuera.folders.values()) lista.sort(porOrden(posicion));
     fuera.passive.sort(alfabetico);
     fuera.off.sort(alfabetico);
@@ -1378,6 +1486,10 @@ class Board {
         return this.open(m.key);
 
       // Soltar encima de otra baldosa: crea carpeta, o entra en la del destino.
+      case 'merge':
+        return this.mergeTiles(m.keys, m.target);
+      case 'split':
+        return this.splitTiles(m.keys);
       case 'group': {
         const keys = m.keys.filter((k) => k !== m.target);
         if (!keys.length || !this.tiles.some((x) => x.key === m.target)) return;
@@ -1545,7 +1657,8 @@ class Board {
       mixedPick: t('Some are on and some are off: pick only one kind'),
       uninstallSel: t('Uninstall the selected ones'),
       checkUpdates: t('Check for updates'), update: t('Update to {0}'),
-      hint: modKey(t('Drag one icon onto another to group them. Ctrl+click picks several; tap Ctrl twice to drop them.')),
+      split: t('Split this group'),
+      hint: modKey(t('Drag one icon onto another to join them. Ctrl+click picks several; tap Ctrl twice to drop them.')),
     };
     return `<!DOCTYPE html><html><head>
 <meta charset="utf-8">
@@ -1622,5 +1735,5 @@ module.exports = {
   Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale,
   NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
   restartCommand, findPython, modKey, cleanEnv, installedExtensions, displayName,
-  marketplaceQuery, newerVersion, parseUpdates, iconGroup,
+  marketplaceQuery, newerVersion, parseUpdates, iconGroup, familias,
 };

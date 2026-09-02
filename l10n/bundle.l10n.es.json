@@ -51,7 +51,6 @@
   "Uninstall the selected ones": "Desinstalar los seleccionados",
   "Uninstall {0} extensions? They are deleted from disk.": "¿Desinstalar {0} extensiones? Se borran del disco.",
   "Ctrl+click icons to pick several": "Ctrl+clic en los iconos para elegir varios",
-  "Drag one icon onto another to group them. Ctrl+click picks several; tap Ctrl twice to drop them.": "Arrastra un icono sobre otro para agruparlos. Ctrl+clic elige varios; dos toques de Ctrl los suelta.",
   "\"{0}\" is turned off. Pick it with Ctrl+click and press play to turn it on.": "\"{0}\" está desactivada. Elígela con Ctrl+clic y pulsa play para activarla.",
   "Check for updates": "Buscar actualizaciones",
   "Update to {0}": "Actualizar a {0}",
@@ -62,5 +61,7 @@
   "No installed extensions to check.": "No hay extensiones instaladas que comprobar.",
   "Use the Update button on this page.": "Usa el botón Actualizar de esta ficha.",
   "Passive extensions": "Extensiones pasivas",
-  "Disabled": "Desactivadas"
+  "Disabled": "Desactivadas",
+  "Split this group": "Separar este grupo",
+  "Drag one icon onto another to join them. Ctrl+click picks several; tap Ctrl twice to drop them.": "Arrastra un icono sobre otro para juntarlos. Ctrl+clic elige varios; dos toques de Ctrl los suelta."
 }

@@ -15,6 +15,7 @@ const STR = {
   disableSel: 'Desactivar los elegidos', enableSel: 'Activar los elegidos',
   uninstallSel: 'Desinstalar los elegidos',
   checkUpdates: 'Buscar actualizaciones', update: 'Actualizar a {0}',
+  split: 'Separar este grupo',
   unhideAll: 'Recuperar todos los ocultos',
   disable: 'Desactivar la extension', enable: 'Activar la extension', forget: 'Quitar del tablero',
   uninstall: 'Desinstalar la extension',
@@ -113,10 +114,10 @@ test('UI: pulsar un icono lo abre y lo marca activo', () => {
   assert.strictEqual(ui.saved.active, 'c:a', 'no se recuerda el activo');
 });
 
-test('UI: arrastrar un icono sobre otro pide agrupar', () => {
+test('UI: arrastrar un icono sobre otro los junta en uno', () => {
   const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
   ui.dragTo(ui.cells()[0], ui.cells()[1]);
-  assert.deepStrictEqual(ui.last(), { type: 'group', keys: ['c:a'], target: 'c:b' });
+  assert.deepStrictEqual(ui.last(), { type: 'merge', keys: ['c:a'], target: 'c:b' });
 });
 
 test('UI: soltar un icono sobre si mismo no manda nada', () => {
@@ -300,7 +301,7 @@ test('UI: soltar detras del ultimo icono lo manda al final', () => {
   assert.deepStrictEqual(ui.last(), { type: 'move', keys: ['c:a'], before: null });
 });
 
-test('UI: soltar en el centro sigue agrupando', () => {
+test('UI: soltar en el centro junta, no crea carpeta', () => {
   const ui = mount({ loose: [tile('c:a'), tile('c:b')] });
   const [a, b] = ui.cells();
   rect(b, 48, 48);
@@ -308,7 +309,7 @@ test('UI: soltar en el centro sigue agrupando', () => {
   b.ondragover(at(ui, 24, 24));
   assert.ok(b.className.includes('over') && !b.className.includes('ins-'));
   b.ondrop(at(ui, 24, 24));
-  assert.deepStrictEqual(ui.last(), { type: 'group', keys: ['c:a'], target: 'c:b' });
+  assert.deepStrictEqual(ui.last(), { type: 'merge', keys: ['c:a'], target: 'c:b' });
 });
 
 test('UI: en la cabecera de carpeta el centro mete dentro y el borde reordena', () => {
@@ -852,4 +853,28 @@ test('UI: Ctrl+clic elige una pila entera dentro de una seccion', () => {
   ui.folders()[0].onclick();
   ui.doc.querySelector('.kids .cell.stack').onclick({ ctrlKey: true });
   assert.strictEqual(ui.board().selState().count, 2);
+});
+
+test('UI: una pila se ve elegida, no solo lo que tiene dentro', () => {
+  const ui = mount({ loose: [tile('c:a', { group: 'f:1' }), tile('c:b', { group: 'f:1' })] });
+  const pila = ui.stacks()[0];
+  pila.onclick({ ctrlKey: true });
+  assert.ok(ui.stacks()[0].className.includes('sel'), 'el usuario no ve que la eligio');
+  assert.strictEqual(ui.board().selState().count, 2);
+});
+
+test('UI: media pila elegida no marca la pila entera', () => {
+  const ui = mount({ loose: [tile('c:a', { group: 'f:1' }), tile('c:b', { group: 'f:1' })] });
+  ui.stacks()[0].onclick();                       // se abre
+  ui.doc.querySelector('.kids.pile .cell').onclick({ ctrlKey: true });
+  assert.ok(!ui.stacks()[0].className.includes('sel'));
+});
+
+test('UI: una pila ofrece separarse, que si no no habria vuelta atras', () => {
+  const ui = mount({ loose: [tile('c:a', { group: 'f:1' }), tile('c:b', { group: 'f:1' })] });
+  ui.stacks()[0].oncontextmenu(ui.ev());
+  const rows = [...ui.doc.getElementById('menu').children];
+  assert.strictEqual(rows[0].textContent, STR.split);
+  rows[0].onclick();
+  assert.deepStrictEqual(ui.last(), { type: 'split', keys: ['c:a', 'c:b'] });
 });
