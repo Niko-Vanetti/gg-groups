@@ -43,7 +43,10 @@ Module._load = orig;
 
 const { Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale, NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
   restartCommand, modKey, cleanEnv, installedExtensions, displayName,
-  marketplaceQuery, newerVersion, parseUpdates, iconGroup } = mod.exports;
+  marketplaceQuery, newerVersion, parseUpdates, iconGroup,
+  repairIcon, builtinDirs } = mod.exports;
+/** Un contexto que vive dentro del escaparate de mentira, como la extension instalada. */
+const TIENDA_CTX = { extensionUri: { fsPath: path.join(ROOT, 'test', 'fixtures', 'store', 'niko.view-groups-9.9.9') } };
 const CTX = { extensionUri: { fsPath: ROOT } };
 const tiles = discover(CTX);
 // Iconos que el usuario puede mover: los nativos van bloqueados y no valen para estas pruebas.
@@ -1877,4 +1880,35 @@ test('VS Code se reabre desasido de la ventana del guion', () => {
   assert.ok(/function AbreVSCode/.test(ps));
   assert.ok(/'\/c', 'start'/.test(ps), 'sin start de cmd sigue colgando de la consola');
   assert.ok(!/Start-Process -FilePath \$CodeExe/.test(ps), 'queda una llamada de las viejas');
+});
+
+// --- rutas de iconos que se quedan sin archivo ---
+
+test('una ruta que sigue existiendo se deja como esta', () => {
+  const buena = path.join(ROOT, 'test', 'fixtures', 'store', 'acme.passive-one-1.0.0', 'logo.png');
+  assert.strictEqual(repairIcon(buena, TIENDA_CTX), buena);
+});
+
+test('si la extension cambio de version, se busca su carpeta nueva', () => {
+  // La carpeta lleva la version en el nombre: al actualizarse cambia y la ruta anotada
+  // deja de existir. El icono caia a una letra sin decir por que.
+  const vieja = path.join(ROOT, 'test', 'fixtures', 'store', 'acme.passive-one-0.0.1', 'logo.png');
+  assert.ok(!fs.existsSync(vieja), 'la prueba no vale si esa carpeta existe');
+  const nueva = repairIcon(vieja, TIENDA_CTX);
+  assert.ok(nueva && fs.existsSync(nueva), 'no encontro el mismo archivo en la carpeta nueva');
+  assert.ok(nueva.endsWith('logo.png'));
+});
+
+test('sin nada parecido donde mirar, se dice que no en vez de inventar', () => {
+  const inventada = path.join(ROOT, 'test', 'fixtures', 'store', 'acme.no-existe-1.0.0', 'x.png');
+  assert.strictEqual(repairIcon(inventada, TIENDA_CTX), null);
+  assert.strictEqual(repairIcon(null, TIENDA_CTX), null);
+  assert.strictEqual(repairIcon('C:/algo/suelto.png', TIENDA_CTX), null);
+});
+
+test('las carpetas de fabrica de VS Code quedan autorizadas al webview', () => {
+  // El icono de References vive ahi dentro, no en la carpeta del usuario.
+  const b = makeBoard();
+  const permisos = b.roots().map((u) => String(u.fsPath || u));
+  for (const d of builtinDirs()) assert.ok(permisos.includes(d), 'faltaria permiso para ' + d);
 });

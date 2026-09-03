@@ -163,6 +163,61 @@ function extensionsDir(ctx) {
   return propia ? path.dirname(propia) : null;
 }
 
+/**
+ * Donde VS Code guarda sus extensiones de fabrica. Van dentro de la instalacion, en una
+ * carpeta cuyo nombre cambia con cada version, asi que se mira cual hay ahora.
+ */
+function builtinDirs() {
+  const fuera = [];
+  try {
+    const raiz = path.dirname(process.execPath);
+    for (const d of fs.readdirSync(raiz)) {
+      const p = path.join(raiz, d, 'resources', 'app', 'extensions');
+      if (fs.existsSync(p)) fuera.push(p);
+    }
+  } catch { /* sin instalacion a la vista, no hay nada que anadir */ }
+  return fuera;
+}
+
+/**
+ * Rehace la ruta de un icono cuando su archivo ya no esta donde se anoto. Pasa mas de lo
+ * que parece: VS Code se actualiza y renombra la carpeta de sus extensiones de fabrica, y
+ * una extension normal cambia de carpeta al subir de version. La ruta guardada apunta
+ * entonces a un sitio que no existe, y el icono cae a una letra sin decir por que. Se busca
+ * el mismo final —carpeta y archivo— donde viven ahora.
+ */
+function repairIcon(ruta, ctx) {
+  if (!ruta) return null;
+  if (fs.existsSync(ruta)) return ruta;
+  // La barra invertida va por su codigo para que ningun escapado la deje por el camino.
+  const partes = ruta.split(/[\u005c/]/).filter(Boolean);
+  const bases = [];
+  const propia = extensionsDir(ctx);
+  if (propia) bases.push(propia);
+  bases.push(...builtinDirs());
+
+  for (const base of bases) {
+    let dentro;
+    try {
+      dentro = fs.readdirSync(base);
+    } catch {
+      continue;
+    }
+    // Cual de los tramos era la carpeta de la extension no se sabe: la ruta guardada
+    // empieza en un sitio que ya no existe. Se prueba cada uno contra lo que hay aqui,
+    // aceptando tambien una hermana con otra version, y gana el que complete un archivo.
+    for (let i = 0; i < partes.length - 1; i++) {
+      const sinVersion = partes[i].replace(/-\d+(\.\d+)*$/, '');
+      const carpeta = dentro.find(
+        (d) => d === partes[i] || d === sinVersion || d.startsWith(sinVersion + '-'));
+      if (!carpeta) continue;
+      const encontrada = path.join(base, carpeta, ...partes.slice(i + 1));
+      if (fs.existsSync(encontrada)) return encontrada;
+    }
+  }
+  return null;
+}
+
 /** El nombre que se ve en la tienda, resolviendo los %marcadores% de traduccion. */
 function displayName(dir, pkg) {
   const crudo = pkg.displayName || pkg.name || '';
@@ -858,10 +913,14 @@ class Board {
     const vistos = new Set(live.map((x) => x.key));
     const dormidas = this.off
       .filter((o) => !vistos.has(o.key))
-      .map((o) => ({
-        key: o.key, cmd: o.cmd, label: o.label, owner: o.owner, ext: o.ext, off: true,
-        icon: o.iconPath ? { uri: vscode.Uri.file(o.iconPath), mask: !!o.mask } : null,
-      }));
+      .map((o) => {
+        // La ruta anotada puede haberse quedado sin archivo: se rehace antes de usarla.
+        const ruta = repairIcon(o.iconPath, this.ctx);
+        return {
+          key: o.key, cmd: o.cmd, label: o.label, owner: o.owner, ext: o.ext, off: true,
+          icon: ruta ? { uri: vscode.Uri.file(ruta), mask: !!o.mask } : null,
+        };
+      });
     this.tiles = [...live, ...dormidas];
     // Con las apagadas ya dentro, para que entren en la misma familia que las demas.
     assignGroups(this.tiles, installedExtensions(this.ctx), this.merged, this.split);
@@ -1375,6 +1434,8 @@ class Board {
     // apagadas seguian saliendo con una letra.
     const dir = extensionsDir(this.ctx);
     if (dir) list.push(vscode.Uri.file(dir));
+    // Y las de fabrica, que viven dentro de la instalacion de VS Code.
+    for (const d of builtinDirs()) list.push(vscode.Uri.file(d));
     for (const o of this.seen) {
       if (o.iconPath) list.push(vscode.Uri.joinPath(vscode.Uri.file(o.iconPath), '..'));
     }
@@ -1809,5 +1870,6 @@ module.exports = {
   Board, discover, keepClickable, normalize, insert, loadStrings, systemLocale, osLocale,
   NATIVE, NATIVE_KEYS, CORE, DEV_CONTAINERS, ensureNative, refineChat, whenValue, containerShows, pickIcon,
   restartCommand, findPython, modKey, cleanEnv, installedExtensions, displayName, assignGroups,
+  repairIcon, builtinDirs,
   marketplaceQuery, newerVersion, parseUpdates, iconGroup, familias,
 };
